@@ -89,6 +89,29 @@ public class CPHInline
         return true;
     }
 
+    public bool SongRequest()
+    {
+        if (!args.ContainsKey("channel_name"))
+            return false;
+
+        string channelName = args["channel_name"].ToString();
+        string rewardId = args["rewardId"].ToString();
+        string token = args["token"].ToString();
+        string url = args["minichat.Data.MessageKit.1.Data.URL"].ToString();
+
+        try
+        {
+            Service.SendSongRequest(channelName, rewardId, token, url);
+            CPH.LogInfo("[VKVideoLive song request] Song request sent");
+        }
+        catch (Exception e)
+        {
+            Logger.Error("[VKVideoLive song request] Error sending song request", e.Message);
+        }
+
+        return true;
+    }
+
     public bool GetViewers()
     {
         if (!args.ContainsKey("channel_name"))
@@ -251,6 +274,7 @@ public class VKVideoLiveApiService
     private const string EndpointSetRewardState = "/channel/{0}/manage/point/reward/{1}/enabled";
     private const string EndpointGetSeasonStatistics = "/channel/{0}/support_program/season/{1}/statistic/{2}/daily/";
     private const string EndpointAllStatistics = "/channel/{0}/analytics?aggregate_interval=day&date_interval=30day";
+    private const string EndpointSongRequest = "/channel/{0}/stream/slot/default/point/reward/{1}/activate";
     //    private const string EndpointGetSeasonDaysOnAir = "days_on_air/daily/";
     //    private const string EndpointGetSeasonRaidMembers = "raid_members/daily/";
     //    private const string EndpointGetSeasonViewTimes = "view_time/daily/";
@@ -321,6 +345,44 @@ public class VKVideoLiveApiService
                 response.EnsureSuccessStatusCode();
                 string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
             }
+        }
+        catch (HttpRequestException e)
+        {
+            Logger.Error("Error from client", e.Message);
+        }
+    }
+
+    public void SendSongRequest(string channelName, string rewardId, string token, string videoUrl)
+    {
+        string url = string.Format(ServiceApiHost + EndpointSongRequest, channelName, rewardId);
+        string contentJson = "[\"" + videoUrl + "\",\"unstyled\",[]]";
+        var requestBody = new List<object>
+        {
+            new
+            {
+                type = "link",
+                content = contentJson,
+                url = videoUrl
+            },
+            new
+            {
+                type = "text",
+                content = "",
+                modificator = "BLOCK_END"
+            }
+        };
+        string jsonString = JsonConvert.SerializeObject(requestBody);
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var formData = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("text", jsonString)
+            };
+            using HttpContent httpContent = new FormUrlEncodedContent(formData);
+            using HttpResponseMessage response = Client.PutAsync(url, httpContent).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
         }
         catch (HttpRequestException e)
         {
