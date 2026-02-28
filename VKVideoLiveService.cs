@@ -35,6 +35,8 @@ public class CPHInline
 
         if (CPH.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true) == null)
             CPH.SetGlobalVar("vkvideolive_todays_viewers", new List<string>(), true);
+
+        CPH.RegisterCustomTrigger("Present Viewers", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
     }
 
     public bool ClearTodaysViewers()
@@ -134,6 +136,10 @@ public class CPHInline
                 listOfViewers.Add(user);
             }
             CPH.SetArgument("users", listOfViewers);
+            CPH.SetArgument("viewers_count", viewers.Count);
+            CPH.SetArgument("isLive", true);
+            CPH.SetArgument("isTest", false);
+            CPH.TriggerCodeEvent("VKVideoLive_PresentViewers", true);
         }
         catch (Exception e)
         {
