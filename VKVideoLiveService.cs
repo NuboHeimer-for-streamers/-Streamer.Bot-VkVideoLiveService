@@ -210,36 +210,33 @@ public class CPHInline
 
     public bool GetNewViewers()
     {
-        if (!args.ContainsKey("channel_name"))
-            return false;
+        if (!CPH.TryGetArg("users", out List<Dictionary<string, object>> users) || users == null || users.Count == 0)
+        {
+            CPH.LogInfo("Список зрителей пуст или аргумент users не передан. Вызовите Get Viewers или привяжите экшен к триггеру Present Viewers (VK Video Live).");
+            return true;
+        }
 
-        string channelName = args["channel_name"].ToString();
         List<string> vkvideolive_todays_viewers = CPH.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true);
 
         try
         {
             CPH.LogInfo("Попытка получить нового зрителя на вкпл");
-            var viewers = Service.GetViewers(channelName);
-
-            if (viewers.Count == 0)
+            for (int i = 0; i < users.Count; i++)
             {
-                CPH.LogInfo("Список зрителей пуст");
-                return true;
-            }
+                string displayName = users[i].ContainsKey("userName") ? users[i]["userName"]?.ToString() : null;
+                if (string.IsNullOrEmpty(displayName))
+                    continue;
+                if (vkvideolive_todays_viewers.Contains(displayName))
+                    continue;
 
-            for (int i = 0; i < viewers.Count; i++)
-            {
-                if (!vkvideolive_todays_viewers.Contains(viewers[i].DisplayName))
-                {
-                    vkvideolive_todays_viewers.Add(viewers[i].DisplayName);
-                    CPH.SetGlobalVar("vkvideolive_todays_viewers", vkvideolive_todays_viewers, true);
-                    CPH.SetArgument("service", "VKVideoLive");
-                    CPH.SetArgument("title", "Новый зритель");
-                    CPH.SetArgument("message", viewers[i].DisplayName);
-                    CPH.ExecuteMethod("MiniChat Method Collection", "CreateCustomEvent");
-                    CPH.LogInfo("Новый зритель: " + viewers[i].DisplayName);
-                    Thread.Sleep(200); // Без задержки лента миничата пропускает часть событий.
-                }
+                vkvideolive_todays_viewers.Add(displayName);
+                CPH.SetGlobalVar("vkvideolive_todays_viewers", vkvideolive_todays_viewers, true);
+                CPH.SetArgument("service", "VKVideoLive");
+                CPH.SetArgument("title", "Новый зритель");
+                CPH.SetArgument("message", displayName);
+                CPH.ExecuteMethod("MiniChat Method Collection", "CreateCustomEvent");
+                CPH.LogInfo("Новый зритель: " + displayName);
+                Thread.Sleep(200); // Без задержки лента миничата пропускает часть событий.
             }
         }
         catch (Exception e)
