@@ -38,7 +38,7 @@ public class CPHInline
         if (CPH.GetGlobalVar<HashSet<string>>("vkvideolivePreviousPresentViewers", true) == null)
             CPH.SetGlobalVar("vkvideolivePreviousPresentViewers", new HashSet<string>(), true);
 
-        CPH.RegisterCustomTrigger("Present Viewers", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
+        CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
     }
 
     public bool ClearTodaysViewers()
