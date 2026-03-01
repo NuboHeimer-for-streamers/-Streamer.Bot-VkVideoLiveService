@@ -35,6 +35,8 @@ public class CPHInline
 
         if (CPH.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true) == null)
             CPH.SetGlobalVar("vkvideolive_todays_viewers", new List<string>(), true);
+        if (CPH.GetGlobalVar<HashSet<string>>("vkvideolivePreviousPresentViewers", true) == null)
+            CPH.SetGlobalVar("vkvideolivePreviousPresentViewers", new HashSet<string>(), true);
 
         CPH.RegisterCustomTrigger("Present Viewers", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
     }
@@ -42,6 +44,12 @@ public class CPHInline
     public bool ClearTodaysViewers()
     {
         CPH.SetGlobalVar("vkvideolive_todays_viewers", new List<string>(), true);
+        return true;
+    }
+
+    public bool ClearPreviousPresentViewers()
+    {
+        CPH.SetGlobalVar("vkvideolivePreviousPresentViewers", new HashSet<string>(), true);
         return true;
     }
 
@@ -206,6 +214,84 @@ public class CPHInline
             return false;
         }
         return true;
+    }
+
+    public bool GetInOutViewers()
+    {
+        return GetInOutViewers(CPH);
+    }
+
+    private bool GetInOutViewers(IInlineInvokeProxy cph)
+    {
+        try
+        {
+            var previousPresent = cph.GetGlobalVar<HashSet<string>>("vkvideolivePreviousPresentViewers", true);
+            var todaysViewers = cph.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true);
+
+            if (!cph.TryGetArg("users", out object usersObj))
+            {
+                Logger.Debug("[VKVideoLive GetInOutViewers] Аргумент users отсутствует.");
+                return false;
+            }
+            var currentViewers = usersObj as List<Dictionary<string, object>>;
+            if (currentViewers == null || currentViewers.Count == 0)
+            {
+                Logger.Debug("[VKVideoLive GetInOutViewers] Список зрителей пуст.");
+                return false;
+            }
+
+            var currentNames = new HashSet<string>();
+            foreach (var viewer in currentViewers)
+            {
+                if (viewer.ContainsKey("userName") && viewer["userName"] != null)
+                    currentNames.Add(viewer["userName"].ToString());
+            }
+
+            var currentNamesForSaving = new HashSet<string>(currentNames);
+            var newTodayNames = new HashSet<string>();
+
+            foreach (var name in currentNames)
+            {
+                if (!todaysViewers.Contains(name))
+                {
+                    CreateViewerEvent(cph, name, "Обнаружен(а) впервые на текущей трансляции.");
+                    todaysViewers.Add(name);
+                    newTodayNames.Add(name);
+                }
+            }
+            cph.SetGlobalVar("vkvideolive_todays_viewers", todaysViewers, true);
+
+            foreach (var name in currentNames)
+            {
+                if (newTodayNames.Contains(name))
+                    continue;
+                if (!previousPresent.Contains(name))
+                    CreateViewerEvent(cph, name, "Обнаружен(а) в списке зрителей.");
+            }
+
+            foreach (var name in previousPresent)
+            {
+                if (!currentNames.Contains(name))
+                    CreateViewerEvent(cph, name, "Пропал(а) из списка зрителей.");
+            }
+
+            cph.SetGlobalVar("vkvideolivePreviousPresentViewers", new HashSet<string>(currentNamesForSaving), true);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Logger.Error("[VKVideoLive GetInOutViewers] Ошибка", e.Message);
+            return false;
+        }
+    }
+
+    private void CreateViewerEvent(IInlineInvokeProxy cph, string displayName, string messageText)
+    {
+        cph.SetArgument("service", "VKVideoLive");
+        cph.SetArgument("title", displayName);
+        cph.SetArgument("message", messageText);
+        cph.ExecuteMethod("MiniChat Method Collection", "CreateCustomEvent");
+        Thread.Sleep(200);
     }
 
     public bool GetNewViewers()
