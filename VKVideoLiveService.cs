@@ -225,7 +225,7 @@ public class CPHInline
     {
         try
         {
-            var previousPresent = cph.GetGlobalVar<HashSet<string>>("vkvideolivePreviousPresentViewers", true);
+            var previousPresent = cph.GetGlobalVar<HashSet<string>>("vkvideolivePreviousPresentViewers", true) ?? new HashSet<string>();
             var todaysViewers = cph.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true);
 
             if (!cph.TryGetArg("users", out object usersObj))
@@ -233,18 +233,16 @@ public class CPHInline
                 Logger.Debug("[VKVideoLive GetInOutViewers] Аргумент users отсутствует.");
                 return false;
             }
-            var currentViewers = usersObj as List<Dictionary<string, object>>;
-            if (currentViewers == null || currentViewers.Count == 0)
-            {
-                Logger.Debug("[VKVideoLive GetInOutViewers] Список зрителей пуст.");
-                return false;
-            }
 
             var currentNames = new HashSet<string>();
-            foreach (var viewer in currentViewers)
+            var currentViewers = usersObj as List<Dictionary<string, object>>;
+            if (currentViewers != null)
             {
-                if (viewer.ContainsKey("userName") && viewer["userName"] != null)
-                    currentNames.Add(viewer["userName"].ToString());
+                foreach (var viewer in currentViewers)
+                {
+                    if (viewer.ContainsKey("userName") && viewer["userName"] != null)
+                        currentNames.Add(viewer["userName"].ToString());
+                }
             }
 
             var currentNamesForSaving = new HashSet<string>(currentNames);
