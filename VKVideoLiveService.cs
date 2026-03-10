@@ -44,6 +44,23 @@ public class CPHInline
         if (CPH.GetGlobalVar<HashSet<string>>("vkvideolivePreviousPresentViewers", true) == null)
             CPH.SetGlobalVar("vkvideolivePreviousPresentViewers", new HashSet<string>(), true);
 
+        // Инициализация глобальных переменных для VK OAuth (если ещё не созданы)
+        if (CPH.GetGlobalVar<string>("VkAuthAccessToken", true) == null)
+            CPH.SetGlobalVar("VkAuthAccessToken", string.Empty, true);
+        if (CPH.GetGlobalVar<string>("VkAuthRefreshToken", true) == null)
+            CPH.SetGlobalVar("VkAuthRefreshToken", string.Empty, true);
+        if (CPH.GetGlobalVar<string>("VkAuthExpiresAtUtc", true) == null)
+            CPH.SetGlobalVar("VkAuthExpiresAtUtc", string.Empty, true);
+
+        if (CPH.GetGlobalVar<string>("VkAuthClientId", true) == null)
+            CPH.SetGlobalVar("VkAuthClientId", string.Empty, true);
+        if (CPH.GetGlobalVar<string>("VkAuthClientSecret", true) == null)
+            CPH.SetGlobalVar("VkAuthClientSecret", string.Empty, true);
+        if (CPH.GetGlobalVar<string>("VkAuthRedirectUri", true) == null)
+            CPH.SetGlobalVar("VkAuthRedirectUri", string.Empty, true);
+        if (CPH.GetGlobalVar<string>("VkAuthScope", true) == null)
+            CPH.SetGlobalVar("VkAuthScope", string.Empty, true);
+
         CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
     }
 
@@ -628,14 +645,25 @@ public class VkOAuthService
     private const string TokenUrl = "https://api.live.vkvideo.ru/oauth/server/token";
     private const string RevokeUrl = "https://api.live.vkvideo.ru/oauth/server/revoke";
 
-    private const string GlobalAccessToken = "vk_auth_access_token";
-    private const string GlobalRefreshToken = "vk_auth_refresh_token";
-    private const string GlobalExpiresAt = "vk_auth_expires_at_utc";
+    // New C#-style global keys (preferred)
+    private const string GlobalAccessTokenKey = "VkAuthAccessToken";
+    private const string GlobalRefreshTokenKey = "VkAuthRefreshToken";
+    private const string GlobalExpiresAtKey = "VkAuthExpiresAtUtc";
 
-    private const string GlobalClientId = "vk_auth_client_id";
-    private const string GlobalClientSecret = "vk_auth_client_secret";
-    private const string GlobalRedirectUri = "vk_auth_redirect_uri";
-    private const string GlobalScope = "vk_auth_scope";
+    private const string GlobalClientIdKey = "VkAuthClientId";
+    private const string GlobalClientSecretKey = "VkAuthClientSecret";
+    private const string GlobalRedirectUriKey = "VkAuthRedirectUri";
+    private const string GlobalScopeKey = "VkAuthScope";
+
+    // Backward-compatible legacy keys (snake_case), still read but no longer written
+    private const string LegacyGlobalAccessTokenKey = "vk_auth_access_token";
+    private const string LegacyGlobalRefreshTokenKey = "vk_auth_refresh_token";
+    private const string LegacyGlobalExpiresAtKey = "vk_auth_expires_at_utc";
+
+    private const string LegacyGlobalClientIdKey = "vk_auth_client_id";
+    private const string LegacyGlobalClientSecretKey = "vk_auth_client_secret";
+    private const string LegacyGlobalRedirectUriKey = "vk_auth_redirect_uri";
+    private const string LegacyGlobalScopeKey = "vk_auth_scope";
 
     public VkOAuthService(HttpClient client, Logger logger)
     {
@@ -647,11 +675,14 @@ public class VkOAuthService
     {
         var state = new VkAuthState
         {
-            AccessToken = cph.GetGlobalVar<string>(GlobalAccessToken, true),
-            RefreshToken = cph.GetGlobalVar<string>(GlobalRefreshToken, true)
+            AccessToken = cph.GetGlobalVar<string>(GlobalAccessTokenKey, true)
+                          ?? cph.GetGlobalVar<string>(LegacyGlobalAccessTokenKey, true),
+            RefreshToken = cph.GetGlobalVar<string>(GlobalRefreshTokenKey, true)
+                           ?? cph.GetGlobalVar<string>(LegacyGlobalRefreshTokenKey, true)
         };
 
-        string expiresAtRaw = cph.GetGlobalVar<string>(GlobalExpiresAt, true);
+        string expiresAtRaw = cph.GetGlobalVar<string>(GlobalExpiresAtKey, true)
+                             ?? cph.GetGlobalVar<string>(LegacyGlobalExpiresAtKey, true);
         if (!string.IsNullOrEmpty(expiresAtRaw) && DateTime.TryParse(expiresAtRaw, out DateTime expiresAt))
         {
             state.ExpiresAtUtc = expiresAt;
@@ -662,18 +693,26 @@ public class VkOAuthService
 
     public void SaveStateToGlobals(VkAuthState state, IInlineInvokeProxy cph)
     {
-        cph.SetGlobalVar(GlobalAccessToken, state.AccessToken ?? string.Empty, true);
-        cph.SetGlobalVar(GlobalRefreshToken, state.RefreshToken ?? string.Empty, true);
+        cph.SetGlobalVar(GlobalAccessTokenKey, state.AccessToken ?? string.Empty, true);
+        cph.SetGlobalVar(GlobalRefreshTokenKey, state.RefreshToken ?? string.Empty, true);
         var expiresString = state.ExpiresAtUtc.HasValue ? state.ExpiresAtUtc.Value.ToString("o") : string.Empty;
-        cph.SetGlobalVar(GlobalExpiresAt, expiresString, true);
+        cph.SetGlobalVar(GlobalExpiresAtKey, expiresString, true);
     }
 
     private (string clientId, string clientSecret, string redirectUri, string scope) LoadConfig(IInlineInvokeProxy cph)
     {
-        string clientId = cph.GetGlobalVar<string>(GlobalClientId, true);
-        string clientSecret = cph.GetGlobalVar<string>(GlobalClientSecret, true);
-        string redirectUri = cph.GetGlobalVar<string>(GlobalRedirectUri, true);
-        string scope = cph.GetGlobalVar<string>(GlobalScope, true);
+        string clientId =
+            cph.GetGlobalVar<string>(GlobalClientIdKey, true)
+            ?? cph.GetGlobalVar<string>(LegacyGlobalClientIdKey, true);
+        string clientSecret =
+            cph.GetGlobalVar<string>(GlobalClientSecretKey, true)
+            ?? cph.GetGlobalVar<string>(LegacyGlobalClientSecretKey, true);
+        string redirectUri =
+            cph.GetGlobalVar<string>(GlobalRedirectUriKey, true)
+            ?? cph.GetGlobalVar<string>(LegacyGlobalRedirectUriKey, true);
+        string scope =
+            cph.GetGlobalVar<string>(GlobalScopeKey, true)
+            ?? cph.GetGlobalVar<string>(LegacyGlobalScopeKey, true);
 
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret) || string.IsNullOrEmpty(redirectUri))
         {
