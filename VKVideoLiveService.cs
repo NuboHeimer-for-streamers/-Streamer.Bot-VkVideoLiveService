@@ -24,9 +24,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
+using System.Windows.Forms;
+using System.Drawing;
 
 public class CPHInline
 {
@@ -376,27 +375,8 @@ public class CPHInline
 
             var authState = VkAuthService.LoadStateFromGlobals(cph);
 
-            Exception uiException = null;
-            var t = new Thread(() =>
-            {
-                try
-                {
-                    var window = new VkAuthWindow(VkAuthService, authState, cph);
-                    window.ShowDialog();
-                }
-                catch (Exception ex)
-                {
-                    uiException = ex;
-                }
-            });
-            t.SetApartmentState(ApartmentState.STA);
-            t.Start();
-            t.Join();
-
-            if (uiException != null)
-            {
-                throw uiException;
-            }
+            var window = new VkAuthWindow(VkAuthService, authState, cph);
+            window.ShowDialog();
 
             return true;
         }
@@ -437,8 +417,7 @@ public class VKVideoLiveApiService
 {
     private HttpClient Client { get; set; }
     private Logger Logger { get; set; }
-
-    private const string ServiceApiHost = "https://api.live.vkvideo.ru/v1";
+    private const string ServiceApiHost = "https://apidev.live.vkvideo.ru/v1";
     private const string EndpointTplGetUserData = "/blog/{0}/public_video_stream/chat/user/";
     private const string EndpointSetRewardState = "/channel/{0}/manage/point/reward/{1}/enabled";
     private const string EndpointGetSeasonStatistics = "/channel/{0}/support_program/season/{1}/statistic/{2}/daily/";
@@ -991,14 +970,14 @@ public class VkAuthState
     public bool IsAuthorized => !string.IsNullOrEmpty(AccessToken);
 }
 
-public class VkAuthWindow : Window
+public class VkAuthWindow : Form
 {
     private readonly VkOAuthService _service;
     private VkAuthState _state;
     private readonly IInlineInvokeProxy _cph;
 
-    private readonly TextBlock _statusText;
-    private readonly TextBlock _expiresText;
+    private readonly Label _statusText;
+    private readonly Label _expiresText;
     private readonly Button _loginButton;
     private readonly Button _logoutButton;
 
@@ -1008,85 +987,79 @@ public class VkAuthWindow : Window
         _state = initialState ?? new VkAuthState();
         _cph = cph;
 
-        Title = "VK Видео Live авторизация";
+        Text = "VK Видео Live авторизация";
         Width = 420;
         Height = 220;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        ResizeMode = ResizeMode.NoResize;
+        StartPosition = FormStartPosition.CenterScreen;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = false;
+        MinimizeBox = false;
 
-        var root = new Grid
-        {
-            Margin = new Thickness(12)
-        };
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        var statusLabel = new TextBlock
+        var statusLabel = new Label
         {
             Text = "Статус подключения:",
-            FontWeight = FontWeights.Bold,
-            Margin = new Thickness(0, 0, 0, 4)
+            AutoSize = true,
+            Left = 12,
+            Top = 12,
+            Font = new Font(Font, FontStyle.Bold)
         };
-        Grid.SetRow(statusLabel, 0);
-        root.Children.Add(statusLabel);
+        Controls.Add(statusLabel);
 
-        _statusText = new TextBlock
+        _statusText = new Label
         {
-            Margin = new Thickness(0, 0, 0, 4)
+            AutoSize = true,
+            Left = 12,
+            Top = statusLabel.Bottom + 4
         };
-        Grid.SetRow(_statusText, 1);
-        root.Children.Add(_statusText);
+        Controls.Add(_statusText);
 
-        _expiresText = new TextBlock
+        _expiresText = new Label
         {
-            Margin = new Thickness(0, 0, 0, 8),
-            Foreground = Brushes.Gray
+            AutoSize = true,
+            Left = 12,
+            Top = _statusText.Bottom + 4,
+            ForeColor = Color.Gray
         };
-        Grid.SetRow(_expiresText, 2);
-        root.Children.Add(_expiresText);
-
-        var buttonsPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right
-        };
+        Controls.Add(_expiresText);
 
         _loginButton = new Button
         {
-            Content = "Login",
-            Margin = new Thickness(0, 0, 8, 0),
-            Padding = new Thickness(12, 4, 12, 4),
-            MinWidth = 80
+            Text = "Login",
+            Width = 90,
+            Height = 28
         };
         _loginButton.Click += LoginButtonOnClick;
 
         _logoutButton = new Button
         {
-            Content = "Logout",
-            Margin = new Thickness(0, 0, 8, 0),
-            Padding = new Thickness(12, 4, 12, 4),
-            MinWidth = 80
+            Text = "Logout",
+            Width = 90,
+            Height = 28
         };
         _logoutButton.Click += LogoutButtonOnClick;
 
         var closeButton = new Button
         {
-            Content = "Закрыть",
-            Padding = new Thickness(12, 4, 12, 4),
-            MinWidth = 80
+            Text = "Закрыть",
+            Width = 90,
+            Height = 28
         };
-        closeButton.Click += (_, _) => Close();
+        closeButton.Click += (sender, args) => Close();
 
-        buttonsPanel.Children.Add(_loginButton);
-        buttonsPanel.Children.Add(_logoutButton);
-        buttonsPanel.Children.Add(closeButton);
+        // Простейшая ручная раскладка снизу справа
+        int buttonsTop = ClientSize.Height - 50;
+        _loginButton.Left = ClientSize.Width - 3 * _loginButton.Width - 30;
+        _loginButton.Top = buttonsTop;
 
-        Grid.SetRow(buttonsPanel, 3);
-        root.Children.Add(buttonsPanel);
+        _logoutButton.Left = _loginButton.Right + 5;
+        _logoutButton.Top = buttonsTop;
 
-        Content = root;
+        closeButton.Left = _logoutButton.Right + 5;
+        closeButton.Top = buttonsTop;
+
+        Controls.Add(_loginButton);
+        Controls.Add(_logoutButton);
+        Controls.Add(closeButton);
 
         UpdateStatusUi();
     }
@@ -1096,7 +1069,7 @@ public class VkAuthWindow : Window
         if (_state != null && _state.IsAuthorized)
         {
             _statusText.Text = "Подключен (токен получен).";
-            _statusText.Foreground = Brushes.Green;
+            _statusText.ForeColor = Color.Green;
 
             if (_state.ExpiresAtUtc.HasValue)
             {
@@ -1107,28 +1080,28 @@ public class VkAuthWindow : Window
                 _expiresText.Text = string.Empty;
             }
 
-            _loginButton.IsEnabled = true;
-            _logoutButton.IsEnabled = true;
+            _loginButton.Enabled = true;
+            _logoutButton.Enabled = true;
         }
         else
         {
             _statusText.Text = "Не авторизован.";
-            _statusText.Foreground = Brushes.Red;
+            _statusText.ForeColor = Color.Red;
             _expiresText.Text = string.Empty;
 
-            _loginButton.IsEnabled = true;
-            _logoutButton.IsEnabled = false;
+            _loginButton.Enabled = true;
+            _logoutButton.Enabled = false;
         }
     }
 
-    private void LoginButtonOnClick(object sender, RoutedEventArgs e)
+    private void LoginButtonOnClick(object sender, EventArgs e)
     {
         try
         {
-            _loginButton.IsEnabled = false;
-            _logoutButton.IsEnabled = false;
+            _loginButton.Enabled = false;
+            _logoutButton.Enabled = false;
             _statusText.Text = "Ожидание авторизации в браузере...";
-            _statusText.Foreground = Brushes.DarkOrange;
+            _statusText.ForeColor = Color.DarkOrange;
 
             _state = _service.StartLoginFlow(_cph);
             UpdateStatusUi();
@@ -1136,16 +1109,16 @@ public class VkAuthWindow : Window
         catch (Exception ex)
         {
             _statusText.Text = "Ошибка авторизации: " + ex.Message;
-            _statusText.Foreground = Brushes.Red;
+            _statusText.ForeColor = Color.Red;
         }
         finally
         {
-            _loginButton.IsEnabled = true;
-            _logoutButton.IsEnabled = _state != null && _state.IsAuthorized;
+            _loginButton.Enabled = true;
+            _logoutButton.Enabled = _state != null && _state.IsAuthorized;
         }
     }
 
-    private void LogoutButtonOnClick(object sender, RoutedEventArgs e)
+    private void LogoutButtonOnClick(object sender, EventArgs e)
     {
         try
         {
@@ -1156,7 +1129,7 @@ public class VkAuthWindow : Window
         catch (Exception ex)
         {
             _statusText.Text = "Ошибка выхода: " + ex.Message;
-            _statusText.Foreground = Brushes.Red;
+            _statusText.ForeColor = Color.Red;
         }
     }
 }
