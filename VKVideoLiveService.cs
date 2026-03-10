@@ -60,6 +60,10 @@ public class CPHInline
             CPH.SetGlobalVar("VkAuthRedirectUri", string.Empty, true);
         if (CPH.GetGlobalVar<string>("VkAuthScope", true) == null)
             CPH.SetGlobalVar("VkAuthScope", string.Empty, true);
+        if (CPH.GetGlobalVar<string>("VkAuthUserNick", true) == null)
+            CPH.SetGlobalVar("VkAuthUserNick", string.Empty, true);
+        if (CPH.GetGlobalVar<string>("VkAuthUserAvatarUrl", true) == null)
+            CPH.SetGlobalVar("VkAuthUserAvatarUrl", string.Empty, true);
 
         CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
     }
@@ -432,12 +436,12 @@ public class CPHInline
 
 public class VKVideoLiveApiService
 {
-    private HttpClient Client { get; set; }
-    private Logger Logger { get; set; }
+    internal HttpClient Client { get; set; }
+    internal Logger Logger { get; set; }
     // Public/browser-facing API host (used for existing viewer/reward endpoints)
-    private const string ServiceBrowserApiHost = "https://api.live.vkvideo.ru/v1";
+    internal const string ServiceBrowserApiHost = "https://api.live.vkvideo.ru/v1";
     // Official DevAPI host (to be used for OAuth/DevAPI-specific calls)
-    private const string ServiceOfficialApiHost = "https://apidev.live.vkvideo.ru/v1";
+    internal const string ServiceOfficialApiHost = "https://apidev.live.vkvideo.ru/v1";
     private const string EndpointTplGetUserData = "/blog/{0}/public_video_stream/chat/user/";
     private const string EndpointSetRewardState = "/channel/{0}/manage/point/reward/{1}/enabled";
     private const string EndpointGetSeasonStatistics = "/channel/{0}/support_program/season/{1}/statistic/{2}/daily/";
@@ -655,6 +659,9 @@ public class VkOAuthService
     private const string GlobalRedirectUriKey = "VkAuthRedirectUri";
     private const string GlobalScopeKey = "VkAuthScope";
 
+    internal const string GlobalUserNickKey = "VkAuthUserNick";
+    internal const string GlobalUserAvatarUrlKey = "VkAuthUserAvatarUrl";
+
     // Backward-compatible legacy keys (snake_case), still read but no longer written
     private const string LegacyGlobalAccessTokenKey = "vk_auth_access_token";
     private const string LegacyGlobalRefreshTokenKey = "vk_auth_refresh_token";
@@ -664,6 +671,8 @@ public class VkOAuthService
     private const string LegacyGlobalClientSecretKey = "vk_auth_client_secret";
     private const string LegacyGlobalRedirectUriKey = "vk_auth_redirect_uri";
     private const string LegacyGlobalScopeKey = "vk_auth_scope";
+    internal const string LegacyGlobalUserNickKey = "vk_auth_user_nick";
+    internal const string LegacyGlobalUserAvatarUrlKey = "vk_auth_user_avatar_url";
 
     public VkOAuthService(HttpClient client, Logger logger)
     {
@@ -743,6 +752,7 @@ public class VkOAuthService
 
         var tokenState = ExchangeCodeForTokens(code, config.clientId, config.clientSecret, config.redirectUri);
         SaveStateToGlobals(tokenState, cph);
+        TryUpdateProfileInfo(tokenState.AccessToken, cph);
         return tokenState;
     }
 
@@ -758,6 +768,46 @@ public class VkOAuthService
         var refreshed = RefreshTokensInternal(currentState.RefreshToken, config.clientId, config.clientSecret);
         SaveStateToGlobals(refreshed, cph);
         return refreshed;
+    }
+
+    private void TryUpdateProfileInfo(string accessToken, IInlineInvokeProxy cph)
+    {
+        if (string.IsNullOrEmpty(accessToken))
+            return;
+
+        try
+        {
+            // current_user доступен через DevAPI-хост
+            string url = VKVideoLiveApiService.ServiceOfficialApiHost + "/current_user";
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+            using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
+            string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.Error("[VKVideoLive auth] Ошибка получения профиля current_user",
+                    (int)response.StatusCode, response.StatusCode, body);
+                return;
+            }
+
+            var root = JObject.Parse(body);
+            var user = root["data"]?["user"];
+            if (user == null)
+                return;
+
+            string nick = (string)user["nick"] ?? string.Empty;
+            string avatarUrl = (string)user["avatar_url"] ?? string.Empty;
+
+            cph.SetGlobalVar(GlobalUserNickKey, nick, true);
+            cph.SetGlobalVar(GlobalUserAvatarUrlKey, avatarUrl, true);
+        }
+        catch (Exception e)
+        {
+            _logger.Error("[VKVideoLive auth] Не удалось обновить информацию о пользователе (current_user)", e.Message);
+        }
     }
 
     public void Logout(VkAuthState currentState, IInlineInvokeProxy cph)
@@ -1020,6 +1070,8 @@ public class VkAuthWindow : Form
 
     private readonly Label _statusText;
     private readonly Label _expiresText;
+    private readonly Label _userLabel;
+    private readonly PictureBox _avatarBox;
     private readonly Button _loginButton;
     private readonly Button _logoutButton;
 
@@ -1063,6 +1115,25 @@ public class VkAuthWindow : Form
             ForeColor = Color.Gray
         };
         Controls.Add(_expiresText);
+
+        _userLabel = new Label
+        {
+            AutoSize = true,
+            Left = 12,
+            Top = _expiresText.Bottom + 6
+        };
+        Controls.Add(_userLabel);
+
+        _avatarBox = new PictureBox
+        {
+            Left = ClientSize.Width - 80,
+            Top = 12,
+            Width = 48,
+            Height = 48,
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BorderStyle = BorderStyle.None
+        };
+        Controls.Add(_avatarBox);
 
         _loginButton = new Button
         {
@@ -1108,6 +1179,13 @@ public class VkAuthWindow : Form
 
     private void UpdateStatusUi()
     {
+        string nick = _cph.GetGlobalVar<string>(VkOAuthService.GlobalUserNickKey, true)
+                     ?? _cph.GetGlobalVar<string>(VkOAuthService.LegacyGlobalUserNickKey, true)
+                     ?? string.Empty;
+        string avatarUrl = _cph.GetGlobalVar<string>(VkOAuthService.GlobalUserAvatarUrlKey, true)
+                          ?? _cph.GetGlobalVar<string>(VkOAuthService.LegacyGlobalUserAvatarUrlKey, true)
+                          ?? string.Empty;
+
         if (_state != null && _state.IsAuthorized)
         {
             _statusText.Text = "Подключен (токен получен).";
@@ -1133,6 +1211,30 @@ public class VkAuthWindow : Form
 
             _loginButton.Enabled = true;
             _logoutButton.Enabled = false;
+        }
+
+        if (!string.IsNullOrEmpty(nick))
+            _userLabel.Text = "Пользователь: " + nick;
+        else
+            _userLabel.Text = string.Empty;
+
+        if (!string.IsNullOrEmpty(avatarUrl))
+        {
+            try
+            {
+                using var webClient = new WebClient();
+                byte[] data = webClient.DownloadData(avatarUrl);
+                using var ms = new System.IO.MemoryStream(data);
+                _avatarBox.Image = Image.FromStream(ms);
+            }
+            catch (Exception)
+            {
+                _avatarBox.Image = null;
+            }
+        }
+        else
+        {
+            _avatarBox.Image = null;
         }
     }
 
