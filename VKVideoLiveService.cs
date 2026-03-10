@@ -649,7 +649,6 @@ public class VkOAuthService
     private const string TokenUrl = "https://api.live.vkvideo.ru/oauth/server/token";
     private const string RevokeUrl = "https://api.live.vkvideo.ru/oauth/server/revoke";
 
-    // New C#-style global keys (preferred)
     private const string GlobalAccessTokenKey = "VkAuthAccessToken";
     private const string GlobalRefreshTokenKey = "VkAuthRefreshToken";
     private const string GlobalExpiresAtKey = "VkAuthExpiresAtUtc";
@@ -662,18 +661,6 @@ public class VkOAuthService
     internal const string GlobalUserNickKey = "VkAuthUserNick";
     internal const string GlobalUserAvatarUrlKey = "VkAuthUserAvatarUrl";
 
-    // Backward-compatible legacy keys (snake_case), still read but no longer written
-    private const string LegacyGlobalAccessTokenKey = "vk_auth_access_token";
-    private const string LegacyGlobalRefreshTokenKey = "vk_auth_refresh_token";
-    private const string LegacyGlobalExpiresAtKey = "vk_auth_expires_at_utc";
-
-    private const string LegacyGlobalClientIdKey = "vk_auth_client_id";
-    private const string LegacyGlobalClientSecretKey = "vk_auth_client_secret";
-    private const string LegacyGlobalRedirectUriKey = "vk_auth_redirect_uri";
-    private const string LegacyGlobalScopeKey = "vk_auth_scope";
-    internal const string LegacyGlobalUserNickKey = "vk_auth_user_nick";
-    internal const string LegacyGlobalUserAvatarUrlKey = "vk_auth_user_avatar_url";
-
     public VkOAuthService(HttpClient client, Logger logger)
     {
         _client = client;
@@ -684,14 +671,11 @@ public class VkOAuthService
     {
         var state = new VkAuthState
         {
-            AccessToken = cph.GetGlobalVar<string>(GlobalAccessTokenKey, true)
-                          ?? cph.GetGlobalVar<string>(LegacyGlobalAccessTokenKey, true),
+            AccessToken = cph.GetGlobalVar<string>(GlobalAccessTokenKey, true),
             RefreshToken = cph.GetGlobalVar<string>(GlobalRefreshTokenKey, true)
-                           ?? cph.GetGlobalVar<string>(LegacyGlobalRefreshTokenKey, true)
         };
 
-        string expiresAtRaw = cph.GetGlobalVar<string>(GlobalExpiresAtKey, true)
-                             ?? cph.GetGlobalVar<string>(LegacyGlobalExpiresAtKey, true);
+        string expiresAtRaw = cph.GetGlobalVar<string>(GlobalExpiresAtKey, true);
         if (!string.IsNullOrEmpty(expiresAtRaw) && DateTime.TryParse(expiresAtRaw, out DateTime expiresAt))
         {
             state.ExpiresAtUtc = expiresAt;
@@ -710,18 +694,10 @@ public class VkOAuthService
 
     private (string clientId, string clientSecret, string redirectUri, string scope) LoadConfig(IInlineInvokeProxy cph)
     {
-        string clientId =
-            cph.GetGlobalVar<string>(GlobalClientIdKey, true)
-            ?? cph.GetGlobalVar<string>(LegacyGlobalClientIdKey, true);
-        string clientSecret =
-            cph.GetGlobalVar<string>(GlobalClientSecretKey, true)
-            ?? cph.GetGlobalVar<string>(LegacyGlobalClientSecretKey, true);
-        string redirectUri =
-            cph.GetGlobalVar<string>(GlobalRedirectUriKey, true)
-            ?? cph.GetGlobalVar<string>(LegacyGlobalRedirectUriKey, true);
-        string scope =
-            cph.GetGlobalVar<string>(GlobalScopeKey, true)
-            ?? cph.GetGlobalVar<string>(LegacyGlobalScopeKey, true);
+        string clientId = cph.GetGlobalVar<string>(GlobalClientIdKey, true);
+        string clientSecret = cph.GetGlobalVar<string>(GlobalClientSecretKey, true);
+        string redirectUri = cph.GetGlobalVar<string>(GlobalRedirectUriKey, true);
+        string scope = cph.GetGlobalVar<string>(GlobalScopeKey, true);
 
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret) || string.IsNullOrEmpty(redirectUri))
         {
@@ -1179,12 +1155,8 @@ public class VkAuthWindow : Form
 
     private void UpdateStatusUi()
     {
-        string nick = _cph.GetGlobalVar<string>(VkOAuthService.GlobalUserNickKey, true)
-                     ?? _cph.GetGlobalVar<string>(VkOAuthService.LegacyGlobalUserNickKey, true)
-                     ?? string.Empty;
-        string avatarUrl = _cph.GetGlobalVar<string>(VkOAuthService.GlobalUserAvatarUrlKey, true)
-                          ?? _cph.GetGlobalVar<string>(VkOAuthService.LegacyGlobalUserAvatarUrlKey, true)
-                          ?? string.Empty;
+        string nick = _cph.GetGlobalVar<string>(VkOAuthService.GlobalUserNickKey, true) ?? string.Empty;
+        string avatarUrl = _cph.GetGlobalVar<string>(VkOAuthService.GlobalUserAvatarUrlKey, true) ?? string.Empty;
 
         if (_state != null && _state.IsAuthorized)
         {
