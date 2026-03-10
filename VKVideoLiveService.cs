@@ -22,16 +22,23 @@ using System.Collections.Generic;
 using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics;
+using System.Text;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 
 public class CPHInline
 {
     private readonly HttpClient Client = new();
     private Logger Logger;
     private VKVideoLiveApiService Service;
+    private VkOAuthService VkAuthService;
     public void Init()
     {
         Logger = new Logger(CPH, "-- VKVideoLive Service:");
         Service = new VKVideoLiveApiService(Client, Logger);
+        VkAuthService = new VkOAuthService(Client, Logger);
 
         if (CPH.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true) == null)
             CPH.SetGlobalVar("vkvideolive_todays_viewers", new List<string>(), true);
@@ -349,6 +356,81 @@ public class CPHInline
         CPH.SetArgument("totalAverageVKVideoLiveViewers", totalAverageVKVideoLiveViewers);
         return true;
     }
+
+    public bool VkAuthShowUi()
+    {
+        return VkAuthShowUiInternal(CPH);
+    }
+
+    public bool VkAuthRefresh()
+    {
+        return VkAuthRefreshInternal(CPH);
+    }
+
+    private bool VkAuthShowUiInternal(IInlineInvokeProxy cph)
+    {
+        try
+        {
+            if (VkAuthService == null)
+                VkAuthService = new VkOAuthService(Client, Logger);
+
+            var authState = VkAuthService.LoadStateFromGlobals(cph);
+
+            Exception uiException = null;
+            var t = new Thread(() =>
+            {
+                try
+                {
+                    var window = new VkAuthWindow(VkAuthService, authState, cph);
+                    window.ShowDialog();
+                }
+                catch (Exception ex)
+                {
+                    uiException = ex;
+                }
+            });
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+            t.Join();
+
+            if (uiException != null)
+            {
+                throw uiException;
+            }
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            Logger.Error("[VKVideoLive auth] Ошибка при показе окна авторизации", e.Message);
+            return false;
+        }
+    }
+
+    private bool VkAuthRefreshInternal(IInlineInvokeProxy cph)
+    {
+        try
+        {
+            if (VkAuthService == null)
+                VkAuthService = new VkOAuthService(Client, Logger);
+
+            var state = VkAuthService.LoadStateFromGlobals(cph);
+            if (string.IsNullOrEmpty(state.RefreshToken))
+            {
+                Logger.Error("[VKVideoLive auth] Нельзя обновить токен: refresh_token отсутствует");
+                return false;
+            }
+
+            state = VkAuthService.RefreshTokens(state, cph);
+            VkAuthService.SaveStateToGlobals(state, cph);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Logger.Error("[VKVideoLive auth] Ошибка при обновлении авторизации", e.Message);
+            return false;
+        }
+    }
 }
 
 public class VKVideoLiveApiService
@@ -551,6 +633,530 @@ public class VKVideoLiveApiService
                     AvatarUrl
                 },
             };
+        }
+    }
+}
+
+public class VkOAuthService
+{
+    private readonly HttpClient _client;
+    private readonly Logger _logger;
+
+    private const string AuthBaseUrl = "https://auth.live.vkvideo.ru/app/oauth2/authorize";
+    private const string TokenUrl = "https://api.live.vkvideo.ru/oauth/server/token";
+    private const string RevokeUrl = "https://api.live.vkvideo.ru/oauth/server/revoke";
+
+    private const string GlobalAccessToken = "vk_auth_access_token";
+    private const string GlobalRefreshToken = "vk_auth_refresh_token";
+    private const string GlobalExpiresAt = "vk_auth_expires_at_utc";
+
+    private const string GlobalClientId = "vk_auth_client_id";
+    private const string GlobalClientSecret = "vk_auth_client_secret";
+    private const string GlobalRedirectUri = "vk_auth_redirect_uri";
+    private const string GlobalScope = "vk_auth_scope";
+
+    public VkOAuthService(HttpClient client, Logger logger)
+    {
+        _client = client;
+        _logger = logger;
+    }
+
+    public VkAuthState LoadStateFromGlobals(IInlineInvokeProxy cph)
+    {
+        var state = new VkAuthState
+        {
+            AccessToken = cph.GetGlobalVar<string>(GlobalAccessToken, true),
+            RefreshToken = cph.GetGlobalVar<string>(GlobalRefreshToken, true)
+        };
+
+        string expiresAtRaw = cph.GetGlobalVar<string>(GlobalExpiresAt, true);
+        if (!string.IsNullOrEmpty(expiresAtRaw) && DateTime.TryParse(expiresAtRaw, out DateTime expiresAt))
+        {
+            state.ExpiresAtUtc = expiresAt;
+        }
+
+        return state;
+    }
+
+    public void SaveStateToGlobals(VkAuthState state, IInlineInvokeProxy cph)
+    {
+        cph.SetGlobalVar(GlobalAccessToken, state.AccessToken ?? string.Empty, true);
+        cph.SetGlobalVar(GlobalRefreshToken, state.RefreshToken ?? string.Empty, true);
+        var expiresString = state.ExpiresAtUtc.HasValue ? state.ExpiresAtUtc.Value.ToString("o") : string.Empty;
+        cph.SetGlobalVar(GlobalExpiresAt, expiresString, true);
+    }
+
+    private (string clientId, string clientSecret, string redirectUri, string scope) LoadConfig(IInlineInvokeProxy cph)
+    {
+        string clientId = cph.GetGlobalVar<string>(GlobalClientId, true);
+        string clientSecret = cph.GetGlobalVar<string>(GlobalClientSecret, true);
+        string redirectUri = cph.GetGlobalVar<string>(GlobalRedirectUri, true);
+        string scope = cph.GetGlobalVar<string>(GlobalScope, true);
+
+        if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret) || string.IsNullOrEmpty(redirectUri))
+        {
+            _logger.Error("[VKVideoLive auth] Не заданы client_id, client_secret или redirect_uri в глобальных переменных Streamer.bot");
+            throw new InvalidOperationException("VK auth config is not set in global variables.");
+        }
+
+        if (string.IsNullOrEmpty(scope))
+            scope = string.Empty;
+
+        return (clientId, clientSecret, redirectUri, scope);
+    }
+
+    public VkAuthState StartLoginFlow(IInlineInvokeProxy cph)
+    {
+        var config = LoadConfig(cph);
+        string stateValue = Guid.NewGuid().ToString("N");
+
+        string authorizeUrl = BuildAuthorizeUrl(config.clientId, config.redirectUri, config.scope, stateValue);
+        OpenInBrowser(authorizeUrl);
+
+        var code = WaitForAuthorizationCode(config.redirectUri, stateValue);
+        if (string.IsNullOrEmpty(code))
+        {
+            _logger.Error("[VKVideoLive auth] Не удалось получить код авторизации");
+            throw new InvalidOperationException("Authorization code not received.");
+        }
+
+        var tokenState = ExchangeCodeForTokens(code, config.clientId, config.clientSecret, config.redirectUri);
+        SaveStateToGlobals(tokenState, cph);
+        return tokenState;
+    }
+
+    public VkAuthState RefreshTokens(VkAuthState currentState, IInlineInvokeProxy cph)
+    {
+        var config = LoadConfig(cph);
+        if (string.IsNullOrEmpty(currentState.RefreshToken))
+        {
+            _logger.Error("[VKVideoLive auth] RefreshToken пуст, обновление невозможно");
+            throw new InvalidOperationException("Refresh token is empty.");
+        }
+
+        var refreshed = RefreshTokensInternal(currentState.RefreshToken, config.clientId, config.clientSecret);
+        SaveStateToGlobals(refreshed, cph);
+        return refreshed;
+    }
+
+    public void Logout(VkAuthState currentState, IInlineInvokeProxy cph)
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(currentState.AccessToken))
+            {
+                RevokeToken(currentState.AccessToken, "access_token", cph);
+            }
+
+            if (!string.IsNullOrEmpty(currentState.RefreshToken))
+            {
+                RevokeToken(currentState.RefreshToken, "refresh_token", cph);
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.Error("[VKVideoLive auth] Ошибка при отзыве токенов", e.Message);
+        }
+
+        var cleared = new VkAuthState();
+        SaveStateToGlobals(cleared, cph);
+    }
+
+    private string BuildAuthorizeUrl(string clientId, string redirectUri, string scope, string state)
+    {
+        var uriBuilder = new StringBuilder();
+        uriBuilder.Append(AuthBaseUrl);
+        uriBuilder.Append("?client_id=").Append(Uri.EscapeDataString(clientId));
+        uriBuilder.Append("&redirect_uri=").Append(Uri.EscapeDataString(redirectUri));
+        uriBuilder.Append("&response_type=code");
+        if (!string.IsNullOrEmpty(scope))
+        {
+            uriBuilder.Append("&scope=").Append(Uri.EscapeDataString(scope));
+        }
+        if (!string.IsNullOrEmpty(state))
+        {
+            uriBuilder.Append("&state=").Append(Uri.EscapeDataString(state));
+        }
+        return uriBuilder.ToString();
+    }
+
+    private void OpenInBrowser(string url)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            };
+            Process.Start(psi);
+        }
+        catch (Exception e)
+        {
+            _logger.Error("[VKVideoLive auth] Не удалось открыть браузер", e.Message);
+            throw;
+        }
+    }
+
+    private string WaitForAuthorizationCode(string redirectUri, string expectedState)
+    {
+        try
+        {
+            var uri = new Uri(redirectUri);
+            string prefix = $"{uri.Scheme}://{uri.Host}:{uri.Port}{uri.AbsolutePath}";
+
+            using var listener = new HttpListener();
+            listener.Prefixes.Add(prefix.EndsWith("/") ? prefix : prefix + "/");
+            listener.Start();
+
+            var context = listener.GetContext();
+            var query = context.Request.Url.Query;
+            var queryParams = System.Web.HttpUtility.ParseQueryString(query);
+            string code = queryParams["code"];
+            string state = queryParams["state"];
+
+            if (!string.IsNullOrEmpty(expectedState) && !string.Equals(expectedState, state, StringComparison.Ordinal))
+            {
+                _logger.Error("[VKVideoLive auth] Значение state не совпало");
+                code = null;
+            }
+
+            string responseString = "<!DOCTYPE html><html><head><meta charset=\"utf-8\" />"
+                                    + "<title>VK Видео Live</title></head><body>"
+                                    + "<h2>Авторизация VK Видео Live завершена</h2>"
+                                    + "<p>Можно вернуться в Streamer.bot и закрыть это окно.</p>"
+                                    + "</body></html>";
+            byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+            context.Response.ContentType = "text/html; charset=utf-8";
+            context.Response.ContentLength64 = buffer.Length;
+            context.Response.OutputStream.Write(buffer, 0, buffer.Length);
+            context.Response.OutputStream.Close();
+
+            listener.Stop();
+            return code;
+        }
+        catch (Exception e)
+        {
+            _logger.Error("[VKVideoLive auth] Ошибка при ожидании кода авторизации", e.Message);
+            return null;
+        }
+    }
+
+    private VkAuthState ExchangeCodeForTokens(string code, string clientId, string clientSecret, string redirectUri)
+    {
+        try
+        {
+            var form = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("grant_type", "authorization_code"),
+                new KeyValuePair<string, string>("code", code),
+                new KeyValuePair<string, string>("redirect_uri", redirectUri)
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
+            {
+                Content = new FormUrlEncodedContent(form)
+            };
+
+            string basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
+
+            using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.Error("[VKVideoLive auth] Ошибка обмена кода на токен. StatusCode: " + (int)response.StatusCode, response.StatusCode, responseBody);
+                throw new InvalidOperationException("VK token endpoint returned non-success status code: " + response.StatusCode);
+            }
+
+            var tokenResponse = JsonConvert.DeserializeObject<VkTokenResponse>(responseBody);
+            if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
+                throw new InvalidOperationException("Token response is empty.");
+
+            var state = new VkAuthState
+            {
+                AccessToken = tokenResponse.AccessToken,
+                RefreshToken = tokenResponse.RefreshToken,
+                ExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
+            };
+
+            return state;
+        }
+        catch (Exception e)
+        {
+            _logger.Error("[VKVideoLive auth] Ошибка при обмене кода на токен", e.Message);
+            throw;
+        }
+    }
+
+    private VkAuthState RefreshTokensInternal(string refreshToken, string clientId, string clientSecret)
+    {
+        try
+        {
+            var form = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("grant_type", "refresh_token"),
+                new KeyValuePair<string, string>("refresh_token", refreshToken)
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
+            {
+                Content = new FormUrlEncodedContent(form)
+            };
+
+            string basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
+
+            using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.Error("[VKVideoLive auth] Ошибка обновления токенов. StatusCode: " + (int)response.StatusCode, response.StatusCode, responseBody);
+                throw new InvalidOperationException("VK token endpoint returned non-success status code (refresh): " + response.StatusCode);
+            }
+
+            var tokenResponse = JsonConvert.DeserializeObject<VkTokenResponse>(responseBody);
+            if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
+                throw new InvalidOperationException("Token response is empty.");
+
+            var state = new VkAuthState
+            {
+                AccessToken = tokenResponse.AccessToken,
+                RefreshToken = string.IsNullOrEmpty(tokenResponse.RefreshToken) ? refreshToken : tokenResponse.RefreshToken,
+                ExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
+            };
+
+            return state;
+        }
+        catch (Exception e)
+        {
+            _logger.Error("[VKVideoLive auth] Ошибка при обновлении токенов", e.Message);
+            throw;
+        }
+    }
+
+    private void RevokeToken(string token, string tokenType, IInlineInvokeProxy cph)
+    {
+        try
+        {
+            var config = LoadConfig(cph);
+
+            var form = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("token", token),
+                new KeyValuePair<string, string>("token_type_hint", tokenType)
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, RevokeUrl)
+            {
+                Content = new FormUrlEncodedContent(form)
+            };
+
+            string basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{config.clientId}:{config.clientSecret}"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
+
+            using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+        }
+        catch (Exception e)
+        {
+            _logger.Error("[VKVideoLive auth] Ошибка при отзыве токена", e.Message);
+        }
+    }
+
+    private class VkTokenResponse
+    {
+        [JsonProperty("access_token")]
+        public string AccessToken { get; set; }
+
+        [JsonProperty("refresh_token")]
+        public string RefreshToken { get; set; }
+
+        [JsonProperty("expires_in")]
+        public int ExpiresIn { get; set; }
+
+        [JsonProperty("token_type")]
+        public string TokenType { get; set; }
+    }
+}
+
+public class VkAuthState
+{
+    public string AccessToken { get; set; }
+    public string RefreshToken { get; set; }
+    public DateTime? ExpiresAtUtc { get; set; }
+
+    public bool IsAuthorized => !string.IsNullOrEmpty(AccessToken);
+}
+
+public class VkAuthWindow : Window
+{
+    private readonly VkOAuthService _service;
+    private VkAuthState _state;
+    private readonly IInlineInvokeProxy _cph;
+
+    private readonly TextBlock _statusText;
+    private readonly TextBlock _expiresText;
+    private readonly Button _loginButton;
+    private readonly Button _logoutButton;
+
+    public VkAuthWindow(VkOAuthService service, VkAuthState initialState, IInlineInvokeProxy cph)
+    {
+        _service = service;
+        _state = initialState ?? new VkAuthState();
+        _cph = cph;
+
+        Title = "VK Видео Live авторизация";
+        Width = 420;
+        Height = 220;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        ResizeMode = ResizeMode.NoResize;
+
+        var root = new Grid
+        {
+            Margin = new Thickness(12)
+        };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var statusLabel = new TextBlock
+        {
+            Text = "Статус подключения:",
+            FontWeight = FontWeights.Bold,
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        Grid.SetRow(statusLabel, 0);
+        root.Children.Add(statusLabel);
+
+        _statusText = new TextBlock
+        {
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        Grid.SetRow(_statusText, 1);
+        root.Children.Add(_statusText);
+
+        _expiresText = new TextBlock
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = Brushes.Gray
+        };
+        Grid.SetRow(_expiresText, 2);
+        root.Children.Add(_expiresText);
+
+        var buttonsPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+
+        _loginButton = new Button
+        {
+            Content = "Login",
+            Margin = new Thickness(0, 0, 8, 0),
+            Padding = new Thickness(12, 4, 12, 4),
+            MinWidth = 80
+        };
+        _loginButton.Click += LoginButtonOnClick;
+
+        _logoutButton = new Button
+        {
+            Content = "Logout",
+            Margin = new Thickness(0, 0, 8, 0),
+            Padding = new Thickness(12, 4, 12, 4),
+            MinWidth = 80
+        };
+        _logoutButton.Click += LogoutButtonOnClick;
+
+        var closeButton = new Button
+        {
+            Content = "Закрыть",
+            Padding = new Thickness(12, 4, 12, 4),
+            MinWidth = 80
+        };
+        closeButton.Click += (_, _) => Close();
+
+        buttonsPanel.Children.Add(_loginButton);
+        buttonsPanel.Children.Add(_logoutButton);
+        buttonsPanel.Children.Add(closeButton);
+
+        Grid.SetRow(buttonsPanel, 3);
+        root.Children.Add(buttonsPanel);
+
+        Content = root;
+
+        UpdateStatusUi();
+    }
+
+    private void UpdateStatusUi()
+    {
+        if (_state != null && _state.IsAuthorized)
+        {
+            _statusText.Text = "Подключен (токен получен).";
+            _statusText.Foreground = Brushes.Green;
+
+            if (_state.ExpiresAtUtc.HasValue)
+            {
+                _expiresText.Text = "Истекает: " + _state.ExpiresAtUtc.Value.ToLocalTime().ToString("g");
+            }
+            else
+            {
+                _expiresText.Text = string.Empty;
+            }
+
+            _loginButton.IsEnabled = true;
+            _logoutButton.IsEnabled = true;
+        }
+        else
+        {
+            _statusText.Text = "Не авторизован.";
+            _statusText.Foreground = Brushes.Red;
+            _expiresText.Text = string.Empty;
+
+            _loginButton.IsEnabled = true;
+            _logoutButton.IsEnabled = false;
+        }
+    }
+
+    private void LoginButtonOnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _loginButton.IsEnabled = false;
+            _logoutButton.IsEnabled = false;
+            _statusText.Text = "Ожидание авторизации в браузере...";
+            _statusText.Foreground = Brushes.DarkOrange;
+
+            _state = _service.StartLoginFlow(_cph);
+            UpdateStatusUi();
+        }
+        catch (Exception ex)
+        {
+            _statusText.Text = "Ошибка авторизации: " + ex.Message;
+            _statusText.Foreground = Brushes.Red;
+        }
+        finally
+        {
+            _loginButton.IsEnabled = true;
+            _logoutButton.IsEnabled = _state != null && _state.IsAuthorized;
+        }
+    }
+
+    private void LogoutButtonOnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _service.Logout(_state, _cph);
+            _state = new VkAuthState();
+            UpdateStatusUi();
+        }
+        catch (Exception ex)
+        {
+            _statusText.Text = "Ошибка выхода: " + ex.Message;
+            _statusText.Foreground = Brushes.Red;
         }
     }
 }
