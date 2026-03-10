@@ -417,7 +417,10 @@ public class VKVideoLiveApiService
 {
     private HttpClient Client { get; set; }
     private Logger Logger { get; set; }
-    private const string ServiceApiHost = "https://apidev.live.vkvideo.ru/v1";
+    // Public/browser-facing API host (used for existing viewer/reward endpoints)
+    private const string ServiceBrowserApiHost = "https://api.live.vkvideo.ru/v1";
+    // Official DevAPI host (to be used for OAuth/DevAPI-specific calls)
+    private const string ServiceOfficialApiHost = "https://apidev.live.vkvideo.ru/v1";
     private const string EndpointTplGetUserData = "/blog/{0}/public_video_stream/chat/user/";
     private const string EndpointSetRewardState = "/channel/{0}/manage/point/reward/{1}/enabled";
     private const string EndpointGetSeasonStatistics = "/channel/{0}/support_program/season/{1}/statistic/{2}/daily/";
@@ -437,7 +440,7 @@ public class VKVideoLiveApiService
 
     private UserInfoResponse GetUserDataAsync(string channelName)
     {
-        string url = string.Format(ServiceApiHost + EndpointTplGetUserData, channelName);
+        string url = string.Format(ServiceBrowserApiHost + EndpointTplGetUserData, channelName);
         try
         {
             using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
@@ -473,7 +476,7 @@ public class VKVideoLiveApiService
 
     public void ChangeRewardState(string channelName, string rewardId, string rewardState, string token)
     {
-        string url = string.Format(ServiceApiHost + EndpointSetRewardState, channelName, rewardId);
+        string url = string.Format(ServiceBrowserApiHost + EndpointSetRewardState, channelName, rewardId);
         string stub = "";
         string jsonString = JsonConvert.SerializeObject(stub);
         try
@@ -502,7 +505,7 @@ public class VKVideoLiveApiService
 
     public void SendSongRequest(string channelName, string rewardId, string token, string videoUrl)
     {
-        string url = string.Format(ServiceApiHost + EndpointSongRequest, channelName, rewardId);
+        string url = string.Format(ServiceBrowserApiHost + EndpointSongRequest, channelName, rewardId);
         string contentJson = "[\"" + videoUrl + "\",\"unstyled\",[]]";
         var requestBody = new List<object>
         {
@@ -546,7 +549,7 @@ public class VKVideoLiveApiService
 
     public string GetAllStatistics(string channelName, string token)
     {
-        string url = string.Format(ServiceApiHost + EndpointAllStatistics, channelName);
+        string url = string.Format(ServiceBrowserApiHost + EndpointAllStatistics, channelName);
         try
         {
             Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
