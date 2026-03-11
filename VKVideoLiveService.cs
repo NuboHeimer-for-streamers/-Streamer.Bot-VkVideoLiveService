@@ -387,7 +387,11 @@ public class CPHInline
 
         try
         {
-            var viewers = Service.GetViewers(channelName);
+            var authState = EnsureValidDevApiAuth(CPH);
+            if (authState == null)
+                return false;
+
+            var viewers = Service.GetChatMembers(channelName, authState.AccessToken, 200);
 
             if (viewers.Count == 0)
             {
