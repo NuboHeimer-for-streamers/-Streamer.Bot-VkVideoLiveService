@@ -1,40 +1,68 @@
-Модуль для [streamer.bot](https://streamer.bot/), позволяющий взаимодействовать со стриминговой площадкой [Vk Video Live](https://live.vkvideo.ru/). Для его работы необходимо задать имя канала в аргументе *channel_name* в экшене **Set channelName**.
+VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo.ru/) для [Streamer.bot](https://streamer.bot/).
 
-Для общего использования готовы модули:
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![Version](https://img.shields.io/badge/Version-3.2.0-blue.svg)](https://github.com/NuboHeimer-for-streamers/-Streamer.bot-VkLiveService)
 
-* ~~Get New Viewers -- позволяет выводить в MiniChat новых зрителей, пришедших на трасляцию. Подробнее можно узнать в [этом гайде](https://dzen.ru/a/Zaq2Po_5TGRrHwx_).~~
-  * ⚠ неактуально с 18.02.2025, так как теперь нет списка зрителей. Есть список *активных* зрителей. В который зритель попадает только после того, как напишет сообщение в чат.
-* Get Random Viewer -- позволяет получить случайного зрителя из списка *активных* зрителей. Подробнее можно узнать в [этом гайде](https://dzen.ru/a/ZWhq_W5vi2KFMEWF).
-* Get Viewers -- позволяет получить список *активных* зрителей. Записывает список в аргумент users, аналогично тому, как работает **PresentViewers** в стримерботе.
-* Get Viewers Count -- позволяет получить количество зрителей. Записывает его в аргумент стримербота *viewers_count*.
-* ~~Clear Todays Viewers -- позволяет очистить список "сегодняшних" зрителей. Нужно для корректного отображения новых зрителей. В качестве триггера можно использовать, например, триггер старта стрима.~~
-  * ⚠ неактуально с 18.02.2025, так как теперь нет списка зрителей. Есть список *активных* зрителей. В который зритель попадает только после того, как напишет сообщение в чат.
-  
-В коде присутствуют методы, не готовые к широкому использованию, но если вы знаете, что делаете, то можете к ним обращаться:
-* OnReward -- позволяет включить награду за баллы. Для его работы необоходимо задать аргументы:
-  * *channelName* -- имя канала.
-  * *rewardId* -- ID награды. Можно узнать через F12.
-  * *token* -- ваш токен авторизации в Vk Video Live. Можно узнать через F12.
- 
-* OffReward -- позволяет выключить награду за баллы. Для его работы необоходимо задать аргументы:
-  * *channelName* -- имя канала.
-  * *rewardId* -- ID награды. Можно узнать через F12.
-  * *token* -- ваш токен авторизации в Vk Video Live. Можно узнать через F12.
-* GetTotalAverageViewrs -- получить среднее количество зрителей за всё время. (Или за последние 30 дней, я не помню :D) Для его работы необоходимо задать аргументы:
-  * *channelName* -- имя канала.
-  * *token* -- ваш токен авторизации в Vk Video Live. Можно узнать через F12.
+Модуль позволяет получать список активных зрителей, работать с наградами VK Video Live и использовать эти данные в сценариях Streamer.bot.
 
-По всем вопросам можете обращаться в [группу](https://t.me/nuboheimersb/29).
+## 📋 Содержание
 
-## License
-This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](https://creativecommons.org/licenses/by-nc-sa/4.0/).  
-**You are free to:**
-- Share — copy and redistribute the code.
-- Adapt — modify, transform, and build upon the code.
+- [Обзор](#-обзор)
+- [Возможности](#-возможности)
+- [Как пользоваться](#-как-пользоваться)
+- [Поддержка](#-поддержка)
+- [Лицензия](#-лицензия)
 
-**Under the following terms:**
-- Attribution — You must give appropriate credit.
-- NonCommercial — You may not use the material for commercial purposes.
-- ShareAlike — If you remix or modify the code, you must distribute your contributions under the same license.
+## 🎯 Обзор
 
-See the [LICENSE](LICENSE) file for the full legal text.
+VKVideoLiveService — это набор методов для Streamer.bot, которые упрощают работу с VK Video Live:
+
+- получение списка активных зрителей и их количества;
+- выбор случайного зрителя;
+- управление наградами за баллы;
+
+## ✨ Возможности
+
+### Функционал
+
+- **Get Viewers**
+  - Получает список *активных* зрителей и записывает его в аргумент `users` (аналогично встроенному триггеру `PresentViewers` в Streamer.bot).
+  - Api VkLive ограничивает этот список в 200 зрителей.
+
+- **Get Viewers Count**
+  - Возвращает количество текущих зрителей.
+  - Записывает значение в аргумент `viewers_count`.
+
+- **Get Random Viewer**
+  - Возвращает случайного зрителя из списка *активных* зрителей.
+
+- **Награды и статистика**
+  - `OnReward` — включает награду за баллы.
+  - `OffReward` — выключает награду за баллы.
+  - `ActivateRevard` — активирует награду от вашего имени.
+
+
+## 🆘 Поддержка
+
+- **Автор**: NuboHeimer  
+- **Личка Telegram**: [@nuboheimer](https://t.me/nuboheimer)  
+- **Группа Telegram**: [@nuboheimersb](https://t.me/nuboheimersb/29)  
+- **Email**: nuboheimer@yandex.ru  
+- **VK**: [vk.com/nuboheimer](https://vk.com/nuboheimer)
+
+## 📄 Лицензия
+
+Этот проект распространяется под лицензией [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+**Вы можете:**
+
+- 🔄 **Делиться** — копировать и распространять код.
+- 🔧 **Адаптировать** — изменять, трансформировать и улучшать код.
+
+**При следующих условиях:**
+
+- 📝 **Атрибуция** — вы должны указывать авторство.
+- 🚫 **Некоммерческое использование** — материал нельзя использовать в коммерческих целях.
+- 🔗 **ShareAlike** — при изменении кода вы должны распространять его под той же лицензией.
+
+Полный текст лицензии доступен в файле [LICENSE](LICENSE).
