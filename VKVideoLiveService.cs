@@ -688,44 +688,11 @@ public class VKVideoLiveApiService
     private const string EndpointGetSeasonStatistics = "/channel/{0}/support_program/season/{1}/statistic/{2}/daily/";
     private const string EndpointAllStatistics = "/channel/{0}/analytics?aggregate_interval=day&date_interval=30day";
     private const string EndpointSongRequest = "/channel/{0}/stream/slot/default/point/reward/{1}/activate";
-    //    private const string EndpointGetSeasonDaysOnAir = "days_on_air/daily/";
-    //    private const string EndpointGetSeasonRaidMembers = "raid_members/daily/";
-    //    private const string EndpointGetSeasonViewTimes = "view_time/daily/";
-    //    private const string EndpointGetSeasonChPRewardActivate = "cp_reward_activate/daily/";
-    //    private const string EndpointGetSeasonLikes = "like/daily/";
-    //    private const string EndpointGetSeasonTotalProfit= "total_profit/daily/";
+
     public VKVideoLiveApiService(HttpClient client, Logger logger)
     {
         Client = client;
         Logger = logger;
-    }
-
-    private UserInfoResponse GetUserDataAsync(string channelName)
-    {
-        string url = string.Format(ServiceBrowserApiHost + EndpointTplGetUserData, channelName);
-        try
-        {
-            using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
-            response.EnsureSuccessStatusCode();
-            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            return JsonConvert.DeserializeObject<Dictionary<string, UserInfoResponse>>(responseBody)["data"] ?? null;
-        }
-        catch (HttpRequestException e)
-        {
-            Logger.Error("Error from client", e.Message);
-            return null;
-        }
-    }
-
-    public List<UserData> GetViewers(string channelName)
-    {
-        var userData = GetUserDataAsync(channelName);
-        if (userData == null)
-            return new();
-        var users = userData.Users;
-        foreach (var moderator in userData.Moderators)
-            users.Add(moderator);
-        return users;
     }
 
     public int GetChannelViewersCount(string channelUrl, string token)
@@ -776,35 +743,6 @@ public class VKVideoLiveApiService
         {
             Logger.Error("[VKVideoLive chat] Error fetching chat members", e.Message);
             return new List<UserData>();
-        }
-    }
-
-    public void ChangeRewardState(string channelName, string rewardId, string rewardState, string token)
-    {
-        string url = string.Format(ServiceBrowserApiHost + EndpointSetRewardState, channelName, rewardId);
-        string stub = "";
-        string jsonString = JsonConvert.SerializeObject(stub);
-        try
-        {
-            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            using HttpContent httpContent = new StringContent(jsonString);
-            if (rewardState == "On")
-            {
-                using HttpResponseMessage response = Client.PutAsync(url, httpContent).GetAwaiter().GetResult();
-                response.EnsureSuccessStatusCode();
-                string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            }
-
-            if (rewardState == "Off")
-            {
-                using HttpResponseMessage response = Client.DeleteAsync(url).GetAwaiter().GetResult();
-                response.EnsureSuccessStatusCode();
-                string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            }
-        }
-        catch (HttpRequestException e)
-        {
-            Logger.Error("Error from client", e.Message);
         }
     }
 
