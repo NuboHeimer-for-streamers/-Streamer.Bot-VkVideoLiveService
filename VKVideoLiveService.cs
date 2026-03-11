@@ -431,7 +431,12 @@ public class CPHInline
 
         try
         {
-            CPH.SetArgument("viewers_count", Service.GetViewersCount(channelName));
+            var authState = EnsureValidDevApiAuth(CPH);
+            if (authState == null)
+                return false;
+
+            int viewers = Service.GetChannelViewersCount(channelName, authState.AccessToken);
+            CPH.SetArgument("viewers_count", viewers);
         }
         catch (Exception e)
         {
@@ -723,12 +728,29 @@ public class VKVideoLiveApiService
         return users;
     }
 
-    public int GetViewersCount(string channelName)
+    public int GetChannelViewersCount(string channelUrl, string token)
     {
-        var userData = GetUserDataAsync(channelName);
-        if (userData == null)
+        string url = ServiceOfficialApiHost + "/channel?channel_url=" + Uri.EscapeDataString(channelUrl);
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            var root = JsonConvert.DeserializeObject<ChannelInfoRootResponse>(responseBody);
+
+            // Текущее количество зрителей берём из data.stream.counters.viewers (активный стрим)
+            int viewers = root?.Data?.Stream?.Counters?.Viewers ?? 0;
+
+            return viewers;
+        }
+        catch (HttpRequestException e)
+        {
+            Logger.Error("[VKVideoLive channel] Error fetching channel info for viewers count", e.Message);
             return 0;
-        return userData.Count.users + userData.Count.moderators;
+        }
     }
 
     public List<UserData> GetChatMembers(string channelUrl, string token, int limit)
@@ -852,19 +874,10 @@ public class VKVideoLiveApiService
         string url = ServiceOfficialApiHost + EndpointChannelPoints + "?channel_url=" + Uri.EscapeDataString(channelUrl);
         try
         {
-            Logger.Debug("[VKVideoLive points] DevAPI GET {0}", url);
-
             Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
             response.EnsureSuccessStatusCode();
             string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-
-            string preview = responseBody;
-            if (!string.IsNullOrEmpty(preview) && preview.Length > 500)
-                preview = preview.Substring(0, 500) + "...(trimmed)";
-
-            Logger.Debug("[VKVideoLive points] DevAPI raw response: {0}", preview);
-
             var root = JsonConvert.DeserializeObject<ChannelPointRootResponse>(responseBody);
             return root?.Data;
         }
@@ -1006,6 +1019,42 @@ public class VKVideoLiveApiService
                 },
             };
         }
+    }
+
+    public class ChannelInfoRootResponse
+    {
+        [JsonProperty("data")]
+        public ChannelInfoData Data { get; set; }
+    }
+
+    public class ChannelInfoData
+    {
+        [JsonProperty("channel")]
+        public ChannelInfoChannel Channel { get; set; }
+
+        [JsonProperty("stream")]
+        public ChannelInfoStream Stream { get; set; }
+    }
+
+    public class ChannelInfoChannel
+    {
+        [JsonProperty("counters")]
+        public ChannelInfoCounters Counters { get; set; }
+    }
+
+    public class ChannelInfoCounters
+    {
+        [JsonProperty("viewers")]
+        public int Viewers { get; set; }
+
+        [JsonProperty("views")]
+        public int Views { get; set; }
+    }
+
+    public class ChannelInfoStream
+    {
+        [JsonProperty("counters")]
+        public ChannelInfoCounters Counters { get; set; }
     }
 
     public class ChatMembersRootResponse
