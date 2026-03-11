@@ -54,38 +54,17 @@ public class CPHInline
         _vkVideoLiveApiService = new VKVideoLiveApiService(_client);
         _vkAuthService = new VkOAuthService(_client);
 
-        if (CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true) == null)
-            CPH.SetGlobalVar(VkLiveTodaysViewersKey, new List<string>(), true);
+        if (CPH.GetGlobalVar<HashSet<string>>(VkLiveTodaysViewersKey, true) == null)
+            CPH.SetGlobalVar(VkLiveTodaysViewersKey, new HashSet<string>(), true);
         if (CPH.GetGlobalVar<HashSet<string>>(VkLivePreviousPresentViewersKey, true) == null)
             CPH.SetGlobalVar(VkLivePreviousPresentViewersKey, new HashSet<string>(), true);
-
-        if (CPH.GetGlobalVar<string>(VkLiveAuthAccessTokenKey, true) == null)
-            CPH.SetGlobalVar(VkLiveAuthAccessTokenKey, string.Empty, true);
-        if (CPH.GetGlobalVar<string>(VkLiveAuthRefreshTokenKey, true) == null)
-            CPH.SetGlobalVar(VkLiveAuthRefreshTokenKey, string.Empty, true);
-        if (CPH.GetGlobalVar<string>(VkLiveAuthExpiresAtUtcKey, true) == null)
-            CPH.SetGlobalVar(VkLiveAuthExpiresAtUtcKey, string.Empty, true);
-
-        if (CPH.GetGlobalVar<string>(VkLiveAuthClientIdKey, true) == null)
-            CPH.SetGlobalVar(VkLiveAuthClientIdKey, string.Empty, true);
-        if (CPH.GetGlobalVar<string>(VkLiveAuthClientSecretKey, true) == null)
-            CPH.SetGlobalVar(VkLiveAuthClientSecretKey, string.Empty, true);
-        if (CPH.GetGlobalVar<string>(VkLiveAuthRedirectUriKey, true) == null)
-            CPH.SetGlobalVar(VkLiveAuthRedirectUriKey, string.Empty, true);
-        if (CPH.GetGlobalVar<string>(VkLiveAuthUserNickKey, true) == null)
-            CPH.SetGlobalVar(VkLiveAuthUserNickKey, string.Empty, true);
-        if (CPH.GetGlobalVar<string>(VkLiveAuthUserAvatarUrlKey, true) == null)
-            CPH.SetGlobalVar(VkLiveAuthUserAvatarUrlKey, string.Empty, true);
-
-        if (CPH.GetGlobalVar<Dictionary<string, string>>(VkLiveRewardsCacheKey, true) == null)
-            CPH.SetGlobalVar(VkLiveRewardsCacheKey, new Dictionary<string, string>(), true);
 
         CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
     }
 
     public bool ClearTodaysViewers()
     {
-        CPH.SetGlobalVar(VkLiveTodaysViewersKey, new List<string>(), true);
+        CPH.SetGlobalVar(VkLiveTodaysViewersKey, new HashSet<string>(), true);
         return true;
     }
 
@@ -555,7 +534,7 @@ public class CPHInline
         try
         {
             var previousPresent = cph.GetGlobalVar<HashSet<string>>(VkLivePreviousPresentViewersKey, true) ?? new HashSet<string>();
-            var todaysViewers = cph.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true) ?? new List<string>();
+            var todaysViewers = cph.GetGlobalVar<HashSet<string>>(VkLiveTodaysViewersKey, true) ?? new HashSet<string>();
 
             if (!cph.TryGetArg("users", out object usersObj))
             {
@@ -634,7 +613,7 @@ public class CPHInline
             return true;
         }
 
-        var todayViewers = cph.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true) ?? new List<string>();
+        var todayViewers = cph.GetGlobalVar<HashSet<string>>(VkLiveTodaysViewersKey, true) ?? new HashSet<string>();
 
         try
         {
@@ -668,7 +647,7 @@ public class CPHInline
 
     private bool AddFirstWordViewerInternal(IInlineInvokeProxy cph)
     {
-        var todayViewers = cph.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true) ?? new List<string>();
+        var todayViewers = cph.GetGlobalVar<HashSet<string>>(VkLiveTodaysViewersKey, true) ?? new HashSet<string>();
 
         if (!cph.TryGetArg("userName", out object userNameObj) || userNameObj == null)
             return true;
