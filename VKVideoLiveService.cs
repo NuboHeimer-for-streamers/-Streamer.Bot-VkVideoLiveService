@@ -498,7 +498,32 @@ public class CPHInline
             if (authState == null)
                 return false;
 
-            var viewers = _vkVideoLiveApiService.GetChatMembers(channelName, authState.AccessToken, 200);
+            // Запрос к API для получения списка участников чата
+            string url = VKVideoLiveApiService.ServiceOfficialApiHost
+                         + "/chat/members?channel_url=" + Uri.EscapeDataString(channelName)
+                         + "&limit=200";
+
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authState.AccessToken);
+            using HttpResponseMessage response = _client.GetAsync(url).GetAwaiter().GetResult();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            response.EnsureSuccessStatusCode();
+
+            var rootToken = JObject.Parse(responseBody);
+            var usersToken = rootToken["data"]?["users"] as JArray;
+
+            var viewers = new List<string>();
+            if (usersToken != null)
+            {
+                foreach (var user in usersToken)
+                {
+                    string nick = user["nick"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(nick))
+                    {
+                        viewers.Add(nick);
+                    }
+                }
+            }
 
             if (viewers.Count == 0)
             {
@@ -510,7 +535,7 @@ public class CPHInline
 
             var candidates = string.IsNullOrEmpty(lastRandomViewer)
                 ? viewers
-                : viewers.Where(v => !string.Equals(v.DisplayName, lastRandomViewer, StringComparison.Ordinal)).ToList();
+                : viewers.Where(v => !string.Equals(v, lastRandomViewer, StringComparison.Ordinal)).ToList();
 
             if (candidates.Count == 0)
             {
@@ -519,8 +544,8 @@ public class CPHInline
 
             var viewer = candidates[rnd.Next(candidates.Count)];
 
-            cph.SetArgument("viewer", viewer.DisplayName);
-            cph.SetGlobalVar(VkLiveLastRandomViewerKey, viewer.DisplayName, true);
+            cph.SetArgument("viewer", viewer);
+            cph.SetGlobalVar(VkLiveLastRandomViewerKey, viewer, true);
         }
         catch (Exception e)
         {
