@@ -45,15 +45,15 @@ public class CPHInline
 
     private const string VkLiveRewardsCacheKey = "VkLiveRewardsCache";
 
-    private readonly HttpClient Client = new();
-    private Logger Logger;
-    private VKVideoLiveApiService Service;
-    private VkOAuthService VkAuthService;
+    private readonly HttpClient _client = new();
+    private Logger _logger;
+    private VKVideoLiveApiService _vkVideoLiveApiService;
+    private VkOAuthService _vkAuthService;
     public void Init()
     {
-        Logger = new Logger(CPH, "-- VKVideoLive Service:");
-        Service = new VKVideoLiveApiService(Client, Logger);
-        VkAuthService = new VkOAuthService(Client, Logger);
+        _logger = new Logger(CPH, "-- VKVideoLive Service:");
+        _vkVideoLiveApiService = new VKVideoLiveApiService(_client, _logger);
+        _vkAuthService = new VkOAuthService(_client, _logger);
 
         if (CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true) == null)
             CPH.SetGlobalVar(VkLiveTodaysViewersKey, new List<string>(), true);
@@ -105,7 +105,7 @@ public class CPHInline
 
             if (!args.ContainsKey("rewardName"))
             {
-                Logger.Error("[VKVideoLive reward manager] Аргумент rewardName не передан.");
+                _logger.Error("[VKVideoLive reward manager] Аргумент rewardName не передан.");
                 return false;
             }
 
@@ -114,33 +114,33 @@ public class CPHInline
 
             if (string.IsNullOrWhiteSpace(channelName))
             {
-                Logger.Error("[VKVideoLive reward manager] Значение channel_name пустое.");
+                _logger.Error("[VKVideoLive reward manager] Значение channel_name пустое.");
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(rewardName))
             {
-                Logger.Error("[VKVideoLive reward manager] Значение rewardName пустое.");
+                _logger.Error("[VKVideoLive reward manager] Значение rewardName пустое.");
                 return false;
             }
 
-            var authState = EnsureValidDevApiAuth(CPH);
+            var authState = EnsureValidAuth(CPH);
             if (authState == null)
                 return false;
 
             string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
             if (string.IsNullOrEmpty(rewardId))
             {
-                Logger.Error("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                _logger.Error("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
                 return false;
             }
 
-            Service.EnableRewardDev(channelName, rewardId, authState.AccessToken);
+            _vkVideoLiveApiService.EnableReward(channelName, rewardId, authState.AccessToken);
             return true;
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive reward manager] Ошибка при включении награды по имени", e.Message);
+            _logger.Error("[VKVideoLive reward manager] Ошибка при включении награды по имени", e.Message);
             return false;
         }
     }
@@ -153,7 +153,7 @@ public class CPHInline
         if (cache.TryGetValue(rewardName, out string rewardId) && !string.IsNullOrEmpty(rewardId))
             return rewardId;
 
-        var channelPoints = Service.GetChannelPoints(channelName, accessToken);
+        var channelPoints = _vkVideoLiveApiService.GetChannelPoints(channelName, accessToken);
         if (channelPoints == null || channelPoints.Rewards == null || channelPoints.Rewards.Count == 0)
             return null;
 
@@ -181,7 +181,7 @@ public class CPHInline
 
             if (!args.ContainsKey("rewardName"))
             {
-                Logger.Error("[VKVideoLive reward manager] Аргумент rewardName не передан.");
+                _logger.Error("[VKVideoLive reward manager] Аргумент rewardName не передан.");
                 return false;
             }
 
@@ -190,33 +190,33 @@ public class CPHInline
 
             if (string.IsNullOrWhiteSpace(channelName))
             {
-                Logger.Error("[VKVideoLive reward manager] Значение channel_name пустое.");
+                _logger.Error("[VKVideoLive reward manager] Значение channel_name пустое.");
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(rewardName))
             {
-                Logger.Error("[VKVideoLive reward manager] Значение rewardName пустое.");
+                _logger.Error("[VKVideoLive reward manager] Значение rewardName пустое.");
                 return false;
             }
 
-            var authState = EnsureValidDevApiAuth(CPH);
+            var authState = EnsureValidAuth(CPH);
             if (authState == null)
                 return false;
 
             string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
             if (string.IsNullOrEmpty(rewardId))
             {
-                Logger.Error("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                _logger.Error("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
                 return false;
             }
 
-            Service.DisableRewardDev(channelName, rewardId, authState.AccessToken);
+            _vkVideoLiveApiService.DisableReward(channelName, rewardId, authState.AccessToken);
             return true;
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive reward manager] Ошибка при выключении награды по имени", e.Message);
+            _logger.Error("[VKVideoLive reward manager] Ошибка при выключении награды по имени", e.Message);
             return false;
         }
     }
@@ -228,13 +228,13 @@ public class CPHInline
 
         if (!args.ContainsKey("rewardName"))
         {
-            Logger.Error("[VKVideoLive song request] Аргумент rewardName не передан.");
+                _logger.Error("[VKVideoLive song request] Аргумент rewardName не передан.");
             return false;
         }
 
         if (!args.ContainsKey("minichat.Data.MessageKit.1.Data.URL"))
         {
-            Logger.Error("[VKVideoLive song request] Аргумент URL не передан.");
+                _logger.Error("[VKVideoLive song request] Аргумент URL не передан.");
             return false;
         }
 
@@ -244,41 +244,41 @@ public class CPHInline
 
         if (string.IsNullOrWhiteSpace(channelName))
         {
-            Logger.Error("[VKVideoLive song request] Значение channel_name пустое.");
+            _logger.Error("[VKVideoLive song request] Значение channel_name пустое.");
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(rewardName))
         {
-            Logger.Error("[VKVideoLive song request] Значение rewardName пустое.");
+            _logger.Error("[VKVideoLive song request] Значение rewardName пустое.");
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(videoUrl))
         {
-            Logger.Error("[VKVideoLive song request] Значение URL пустое.");
+            _logger.Error("[VKVideoLive song request] Значение URL пустое.");
             return false;
         }
 
         try
         {
-            var authState = EnsureValidDevApiAuth(CPH);
+            var authState = EnsureValidAuth(CPH);
             if (authState == null)
                 return false;
 
             string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
             if (string.IsNullOrEmpty(rewardId))
             {
-                Logger.Error("[VKVideoLive song request] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                _logger.Error("[VKVideoLive song request] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
                 return false;
             }
 
-            Service.ActivateRewardDev(channelName, rewardId, authState.AccessToken, videoUrl);
+            _vkVideoLiveApiService.ActivateReward(channelName, rewardId, authState.AccessToken, videoUrl);
             return true;
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive song request] Ошибка при покупке награды по имени", e.Message);
+            _logger.Error("[VKVideoLive song request] Ошибка при покупке награды по имени", e.Message);
             return false;
         }
     }
@@ -290,7 +290,7 @@ public class CPHInline
 
         if (!args.ContainsKey("rewardName"))
         {
-            Logger.Error("[VKVideoLive reward activate] Аргумент rewardName не передан.");
+                _logger.Error("[VKVideoLive reward activate] Аргумент rewardName не передан.");
             return false;
         }
 
@@ -301,35 +301,35 @@ public class CPHInline
 
         if (string.IsNullOrWhiteSpace(channelName))
         {
-            Logger.Error("[VKVideoLive reward activate] Значение channel_name пустое.");
+            _logger.Error("[VKVideoLive reward activate] Значение channel_name пустое.");
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(rewardName))
         {
-            Logger.Error("[VKVideoLive reward activate] Значение rewardName пустое.");
+            _logger.Error("[VKVideoLive reward activate] Значение rewardName пустое.");
             return false;
         }
 
         try
         {
-            var authState = EnsureValidDevApiAuth(CPH);
+            var authState = EnsureValidAuth(CPH);
             if (authState == null)
                 return false;
 
             string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
             if (string.IsNullOrEmpty(rewardId))
             {
-                Logger.Error("[VKVideoLive reward activate] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                _logger.Error("[VKVideoLive reward activate] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
                 return false;
             }
 
-            Service.ActivateRewardDev(channelName, rewardId, authState.AccessToken, effectiveMessage);
+            _vkVideoLiveApiService.ActivateReward(channelName, rewardId, authState.AccessToken, effectiveMessage);
             return true;
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive reward activate] Ошибка при активации награды по имени", e.Message);
+            _logger.Error("[VKVideoLive reward activate] Ошибка при активации награды по имени", e.Message);
             return false;
         }
     }
@@ -345,25 +345,25 @@ public class CPHInline
         {
             if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
             {
-                Logger.Error("[VKVideoLive points] Аргумент channel_name не передан.");
+                _logger.Error("[VKVideoLive points] Аргумент channel_name не передан.");
                 return false;
             }
 
             string channelName = channelNameObj.ToString();
             if (string.IsNullOrWhiteSpace(channelName))
             {
-                Logger.Error("[VKVideoLive points] Значение channel_name пустое.");
+                _logger.Error("[VKVideoLive points] Значение channel_name пустое.");
                 return false;
             }
 
-            var authState = EnsureValidDevApiAuth(cph);
+            var authState = EnsureValidAuth(cph);
             if (authState == null)
                 return false;
 
-            var channelPoints = Service.GetChannelPoints(channelName, authState.AccessToken);
+            var channelPoints = _vkVideoLiveApiService.GetChannelPoints(channelName, authState.AccessToken);
             if (channelPoints == null || channelPoints.Rewards == null || channelPoints.Rewards.Count == 0)
             {
-                Logger.Debug("[VKVideoLive points] Награды для управления не найдены.");
+                _logger.Debug("[VKVideoLive points] Награды для управления не найдены.");
                 return true;
             }
 
@@ -385,7 +385,7 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive points] Ошибка при получении списка наград для управления", e.Message);
+            _logger.Error("[VKVideoLive points] Ошибка при получении списка наград для управления", e.Message);
             return false;
         }
     }
@@ -396,26 +396,26 @@ public class CPHInline
             return false;
 
         string channelName = args["channel_name"].ToString();
-        List<Dictionary<string, object>> listOfViewers = new List<Dictionary<string, object>>();
+        List<Dictionary<string, object>> viewersList = new List<Dictionary<string, object>>();
 
         try
         {
-            var authState = EnsureValidDevApiAuth(CPH);
+            var authState = EnsureValidAuth(CPH);
             if (authState == null)
                 return false;
 
-            var viewers = Service.GetChatMembers(channelName, authState.AccessToken, 200);
+            var viewers = _vkVideoLiveApiService.GetChatMembers(channelName, authState.AccessToken, 200);
 
             for (int i = 0; i < viewers.Count; i++)
             {
-                Dictionary<string, object> user = new Dictionary<string, object> {
+                Dictionary<string, object> userData = new Dictionary<string, object> {
 
                     { "userName", viewers[i].DisplayName },
                     { "id", viewers[i].ID },
                 };
-                listOfViewers.Add(user);
+                viewersList.Add(userData);
             }
-            CPH.SetArgument("users", listOfViewers);
+            CPH.SetArgument("users", viewersList);
             CPH.SetArgument("viewers_count", viewers.Count);
             CPH.SetArgument("isLive", true);
             CPH.SetArgument("isTest", false);
@@ -423,7 +423,7 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive get viewers] Error fetching viewers list", e.Message);
+            _logger.Error("[VKVideoLive get viewers] Error fetching viewers list", e.Message);
         }
         return true;
     }
@@ -434,15 +434,15 @@ public class CPHInline
             return false;
 
         string channelName = args["channel_name"].ToString();
-        string last_random_viewer = CPH.GetGlobalVar<string>(VkLiveLastRandomViewerKey, true);
+        string lastRandomViewer = CPH.GetGlobalVar<string>(VkLiveLastRandomViewerKey, true);
 
         try
         {
-            var authState = EnsureValidDevApiAuth(CPH);
+            var authState = EnsureValidAuth(CPH);
             if (authState == null)
                 return false;
 
-            var viewers = Service.GetChatMembers(channelName, authState.AccessToken, 200);
+            var viewers = _vkVideoLiveApiService.GetChatMembers(channelName, authState.AccessToken, 200);
 
             if (viewers.Count == 0)
             {
@@ -455,7 +455,7 @@ public class CPHInline
 
             if (viewers.Count > 1)
             {
-                while (viewer.DisplayName.Equals(last_random_viewer))
+                while (viewer.DisplayName.Equals(lastRandomViewer))
                 {
                     viewers.Remove(viewer);
                     viewer = viewers[rnd.Next(viewers.Count)];
@@ -467,7 +467,7 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            Logger.Error("Error fetching viewers list", e.Message);
+            _logger.Error("Error fetching viewers list", e.Message);
         }
 
         return true;
@@ -486,12 +486,12 @@ public class CPHInline
             if (authState == null)
                 return false;
 
-            int viewers = Service.GetChannelViewersCount(channelName, authState.AccessToken);
+            int viewers = _vkVideoLiveApiService.GetChannelViewersCount(channelName, authState.AccessToken);
             CPH.SetArgument("viewers_count", viewers);
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive get viewers count] Error fetching viewers count", e.Message);
+            _logger.Error("[VKVideoLive get viewers count] Error fetching viewers count", e.Message);
             return false;
         }
         return true;
@@ -511,7 +511,7 @@ public class CPHInline
 
             if (!cph.TryGetArg("users", out object usersObj))
             {
-                Logger.Debug("[VKVideoLive GetInOutViewers] Аргумент users отсутствует.");
+                _logger.Debug("[VKVideoLive GetInOutViewers] Аргумент users отсутствует.");
                 return false;
             }
 
@@ -559,7 +559,7 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive GetInOutViewers] Ошибка", e.Message);
+            _logger.Error("[VKVideoLive GetInOutViewers] Ошибка", e.Message);
             return false;
         }
     }
@@ -581,7 +581,7 @@ public class CPHInline
             return true;
         }
 
-        List<string> vkvideolive_todays_viewers = CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
+        List<string> todayViewers = CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
 
         try
         {
@@ -591,11 +591,11 @@ public class CPHInline
                 string displayName = users[i].ContainsKey("userName") ? users[i]["userName"]?.ToString() : null;
                 if (string.IsNullOrEmpty(displayName))
                     continue;
-                if (vkvideolive_todays_viewers.Contains(displayName))
+                if (todayViewers.Contains(displayName))
                     continue;
 
-                vkvideolive_todays_viewers.Add(displayName);
-                CPH.SetGlobalVar(VkLiveTodaysViewersKey, vkvideolive_todays_viewers, true);
+                todayViewers.Add(displayName);
+                CPH.SetGlobalVar(VkLiveTodaysViewersKey, todayViewers, true);
                 CPH.SetArgument("service", "VKVideoLive");
                 CPH.SetArgument("title", "Новый зритель");
                 CPH.SetArgument("message", displayName);
@@ -606,7 +606,7 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            Logger.Error("Error fetching new viewer", e.Message);
+            _logger.Error("Error fetching new viewer", e.Message);
         }
 
         return true;
@@ -614,9 +614,9 @@ public class CPHInline
 
     public bool AddFirstWordViewer()
     {
-        List<string> vkvideolive_todays_viewers = CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
-        vkvideolive_todays_viewers.Add(args["userName"].ToString());
-        CPH.SetGlobalVar(VkLiveTodaysViewersKey, vkvideolive_todays_viewers, true);
+        List<string> todayViewers = CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
+        todayViewers.Add(args["userName"].ToString());
+        CPH.SetGlobalVar(VkLiveTodaysViewersKey, todayViewers, true);
         return true;
     }
 
@@ -634,19 +634,19 @@ public class CPHInline
     {
         try
         {
-            if (VkAuthService == null)
-                VkAuthService = new VkOAuthService(Client, Logger);
+            if (_vkAuthService == null)
+                _vkAuthService = new VkOAuthService(_client, _logger);
 
-            var authState = VkAuthService.LoadStateFromGlobals(cph);
+            var authState = _vkAuthService.LoadStateFromGlobals(cph);
 
-            var window = new VkAuthWindow(VkAuthService, authState, cph);
+            var window = new VkAuthWindow(_vkAuthService, authState, cph);
             window.ShowDialog();
 
             return true;
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive auth] Ошибка при показе окна авторизации", e.Message);
+            _logger.Error("[VKVideoLive auth] Ошибка при показе окна авторизации", e.Message);
             return false;
         }
     }
@@ -655,38 +655,38 @@ public class CPHInline
     {
         try
         {
-            if (VkAuthService == null)
-                VkAuthService = new VkOAuthService(Client, Logger);
+            if (_vkAuthService == null)
+                _vkAuthService = new VkOAuthService(_client, _logger);
 
-            var state = VkAuthService.LoadStateFromGlobals(cph);
+            var state = _vkAuthService.LoadStateFromGlobals(cph);
             if (string.IsNullOrEmpty(state.RefreshToken))
             {
-                Logger.Error("[VKVideoLive auth] Нельзя обновить токен: refresh_token отсутствует");
+                _logger.Error("[VKVideoLive auth] Нельзя обновить токен: refresh_token отсутствует");
                 return false;
             }
 
-            state = VkAuthService.RefreshTokens(state, cph);
-            VkAuthService.SaveStateToGlobals(state, cph);
+            state = _vkAuthService.RefreshTokens(state, cph);
+            _vkAuthService.SaveStateToGlobals(state, cph);
             return true;
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive auth] Ошибка при обновлении авторизации", e.Message);
+            _logger.Error("[VKVideoLive auth] Ошибка при обновлении авторизации", e.Message);
             return false;
         }
     }
 
-    private VkAuthState EnsureValidDevApiAuth(IInlineInvokeProxy cph)
+    private VkAuthState EnsureValidAuth(IInlineInvokeProxy cph)
     {
         try
         {
-            if (VkAuthService == null)
-                VkAuthService = new VkOAuthService(Client, Logger);
+            if (_vkAuthService == null)
+                _vkAuthService = new VkOAuthService(_client, _logger);
 
-            var state = VkAuthService.LoadStateFromGlobals(cph);
+            var state = _vkAuthService.LoadStateFromGlobals(cph);
             if (state == null || string.IsNullOrEmpty(state.AccessToken))
             {
-                Logger.Error("[VKVideoLive auth] Нет access_token для DevAPI. Выполните первоначальную авторизацию.");
+                _logger.Error("[VKVideoLive auth] Нет access_token для API. Выполните первоначальную авторизацию.");
                 return null;
             }
 
@@ -696,8 +696,8 @@ public class CPHInline
                 // Обновляем токен, если он уже истёк или истекает в ближайшую минуту
                 if (state.ExpiresAtUtc.Value <= now.AddMinutes(1))
                 {
-                    state = VkAuthService.RefreshTokens(state, cph);
-                    VkAuthService.SaveStateToGlobals(state, cph);
+                    state = _vkAuthService.RefreshTokens(state, cph);
+                    _vkAuthService.SaveStateToGlobals(state, cph);
                 }
             }
 
@@ -705,7 +705,7 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive auth] Не удалось проверить/обновить токен DevAPI", e.Message);
+            _logger.Error("[VKVideoLive auth] Не удалось проверить/обновить токен API", e.Message);
             return null;
         }
     }
@@ -717,12 +717,12 @@ public class VKVideoLiveApiService
     internal Logger Logger { get; set; }
     // Public/browser-facing API host (used for existing viewer/reward endpoints)
     internal const string ServiceBrowserApiHost = "https://api.live.vkvideo.ru/v1";
-    // Official DevAPI host (to be used for OAuth/DevAPI-specific calls)
+    // Official API host (to be used for OAuth/API-specific calls)
     internal const string ServiceOfficialApiHost = "https://apidev.live.vkvideo.ru/v1";
     private const string EndpointChannelPoints = "/channel_point/rewards/manage_info";
-    private const string EndpointRewardEnableDev = "/channel_point/reward/enable";
-    private const string EndpointRewardDisableDev = "/channel_point/reward/disable";
-    private const string EndpointRewardActivateDev = "/channel_point/reward/activate";
+    private const string EndpointRewardEnable = "/channel_point/reward/enable";
+    private const string EndpointRewardDisable = "/channel_point/reward/disable";
+    private const string EndpointRewardActivate = "/channel_point/reward/activate";
     private const string EndpointAllStatistics = "/channel/{0}/analytics?aggregate_interval=day&date_interval=30day";
     private const string EndpointSongRequest = "/channel/{0}/stream/slot/default/point/reward/{1}/activate";
 
@@ -840,10 +840,10 @@ public class VKVideoLiveApiService
         }
     }
 
-    public void EnableRewardDev(string channelUrl, string rewardId, string token)
+    public void EnableReward(string channelUrl, string rewardId, string token)
     {
         string url = ServiceOfficialApiHost
-                     + EndpointRewardEnableDev
+                     + EndpointRewardEnable
                      + "?channel_url=" + Uri.EscapeDataString(channelUrl)
                      + "&reward_id=" + Uri.EscapeDataString(rewardId);
         try
@@ -855,14 +855,14 @@ public class VKVideoLiveApiService
         }
         catch (HttpRequestException e)
         {
-            Logger.Error("[VKVideoLive points] Error enabling reward via DevAPI", e.Message);
+            Logger.Error("[VKVideoLive points] Error enabling reward via API", e.Message);
         }
     }
 
-    public void DisableRewardDev(string channelUrl, string rewardId, string token)
+    public void DisableReward(string channelUrl, string rewardId, string token)
     {
         string url = ServiceOfficialApiHost
-                     + EndpointRewardDisableDev
+                     + EndpointRewardDisable
                      + "?channel_url=" + Uri.EscapeDataString(channelUrl)
                      + "&reward_id=" + Uri.EscapeDataString(rewardId);
         try
@@ -874,14 +874,14 @@ public class VKVideoLiveApiService
         }
         catch (HttpRequestException e)
         {
-            Logger.Error("[VKVideoLive points] Error disabling reward via DevAPI", e.Message);
+            Logger.Error("[VKVideoLive points] Error disabling reward via API", e.Message);
         }
     }
 
-    public void ActivateRewardDev(string channelUrl, string rewardId, string token, string videoUrl)
+    public void ActivateReward(string channelUrl, string rewardId, string token, string videoUrl)
     {
         string url = ServiceOfficialApiHost
-                     + EndpointRewardActivateDev
+                     + EndpointRewardActivate
                      + "?channel_url=" + Uri.EscapeDataString(channelUrl);
 
         object messagePart;
@@ -903,7 +903,7 @@ public class VKVideoLiveApiService
         {
             if (string.IsNullOrWhiteSpace(videoUrl))
             {
-                Logger.Error("[VKVideoLive points] Error activating reward via DevAPI", "message text is empty");
+                Logger.Error("[VKVideoLive points] Error activating reward via API", "message text is empty");
                 return;
             }
 
@@ -943,14 +943,14 @@ public class VKVideoLiveApiService
 
             if (!response.IsSuccessStatusCode)
             {
-                Logger.Error("[VKVideoLive points] Error activating reward via DevAPI",
+                Logger.Error("[VKVideoLive points] Error activating reward via API",
                     (int)response.StatusCode, response.StatusCode, responseBody);
                 return;
             }
         }
         catch (HttpRequestException e)
         {
-            Logger.Error("[VKVideoLive points] Error activating reward via DevAPI", e.Message);
+            Logger.Error("[VKVideoLive points] Error activating reward via API", e.Message);
         }
     }
 
@@ -1710,13 +1710,13 @@ public class VkAuthWindow : Form
 
 public class Logger
 {
-    private IInlineInvokeProxy cph { get; set; }
-    private string Prefix { get; set; }
+    private readonly IInlineInvokeProxy _cph;
+    private readonly string _prefix;
 
-    public Logger(IInlineInvokeProxy _CPH, string prefix)
+    public Logger(IInlineInvokeProxy cph, string prefix)
     {
-        cph = _CPH;
-        Prefix = prefix;
+        _cph = cph;
+        _prefix = prefix;
     }
 
     public void WebError(WebException e)
@@ -1729,8 +1729,8 @@ public class Logger
 
     public void Error(string message)
     {
-        message = string.Format("{0} {1}", Prefix, message);
-        cph.LogWarn(message);
+        message = string.Format("{0} {1}", _prefix, message);
+        _cph.LogWarn(message);
     }
 
     public void Error(string message, params object[] additional)
@@ -1746,8 +1746,8 @@ public class Logger
 
     public void Debug(string message)
     {
-        message = string.Format("{0} {1}", Prefix, message);
-        cph.LogDebug(message);
+        message = string.Format("{0} {1}", _prefix, message);
+        _cph.LogDebug(message);
     }
 
     public void Debug(string message, params object[] additional)
