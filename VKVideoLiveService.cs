@@ -26,6 +26,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Windows.Forms;
 using System.Drawing;
+using System.Linq;
 
 public class CPHInline
 {
@@ -153,7 +154,12 @@ public class CPHInline
         var cache = cph.GetGlobalVar<Dictionary<string, string>>(VkLiveRewardsCacheKey, true)
                     ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        if (cache.TryGetValue(rewardName, out string rewardId) && !string.IsNullOrEmpty(rewardId))
+        string cacheKey = channelName + "::" + rewardName;
+
+        if (cache.TryGetValue(cacheKey, out string rewardId) && !string.IsNullOrEmpty(rewardId))
+            return rewardId;
+
+        if (cache.TryGetValue(rewardName, out rewardId) && !string.IsNullOrEmpty(rewardId))
             return rewardId;
 
         var channelPoints = _vkVideoLiveApiService.GetChannelPoints(channelName, accessToken);
@@ -164,12 +170,15 @@ public class CPHInline
         foreach (var reward in channelPoints.Rewards)
         {
             if (!string.IsNullOrWhiteSpace(reward.Name) && !string.IsNullOrWhiteSpace(reward.Id))
-                updatedCache[reward.Name] = reward.Id;
+            {
+                string key = channelName + "::" + reward.Name;
+                updatedCache[key] = reward.Id;
+            }
         }
 
         cph.SetGlobalVar(VkLiveRewardsCacheKey, updatedCache, true);
 
-        if (updatedCache.TryGetValue(rewardName, out rewardId) && !string.IsNullOrEmpty(rewardId))
+        if (updatedCache.TryGetValue(cacheKey, out rewardId) && !string.IsNullOrEmpty(rewardId))
             return rewardId;
 
         return null;
@@ -388,15 +397,14 @@ public class CPHInline
                 return true;
             }
 
-             var rewardsCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var rewardsCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var reward in channelPoints.Rewards)
             {
-                bool isEnabled = !reward.IsDisabled;
-
                 if (!string.IsNullOrWhiteSpace(reward.Name) && !string.IsNullOrWhiteSpace(reward.Id))
                 {
-                    rewardsCache[reward.Name] = reward.Id;
+                    string key = channelName + "::" + reward.Name;
+                    rewardsCache[key] = reward.Id;
                 }
             }
 
@@ -447,12 +455,13 @@ public class CPHInline
             cph.SetArgument("isLive", true);
             cph.SetArgument("isTest", false);
             cph.TriggerCodeEvent("VKVideoLive_PresentViewers", true);
+            return true;
         }
         catch (Exception e)
         {
             cph.LogWarn("[VKVideoLive get viewers] Error fetching viewers list, " + e.Message);
+            return false;
         }
-        return true;
     }
 
     public bool GetRandomViewer()
@@ -483,16 +492,17 @@ public class CPHInline
             }
 
             var rnd = new Random();
-            var viewer = viewers[rnd.Next(viewers.Count)];
 
-            if (viewers.Count > 1)
+            var candidates = string.IsNullOrEmpty(lastRandomViewer)
+                ? viewers
+                : viewers.Where(v => !string.Equals(v.DisplayName, lastRandomViewer, StringComparison.Ordinal)).ToList();
+
+            if (candidates.Count == 0)
             {
-                while (viewer.DisplayName.Equals(lastRandomViewer))
-                {
-                    viewers.Remove(viewer);
-                    viewer = viewers[rnd.Next(viewers.Count)];
-                }
+                candidates = viewers;
             }
+
+            var viewer = candidates[rnd.Next(candidates.Count)];
 
             cph.SetArgument("viewer", viewer.DisplayName);
             cph.SetGlobalVar(VkLiveLastRandomViewerKey, viewer.DisplayName, true);
@@ -500,6 +510,7 @@ public class CPHInline
         catch (Exception e)
         {
             cph.LogWarn("Error fetching viewers list, " + e.Message);
+            return false;
         }
 
         return true;
@@ -544,7 +555,7 @@ public class CPHInline
         try
         {
             var previousPresent = cph.GetGlobalVar<HashSet<string>>(VkLivePreviousPresentViewersKey, true) ?? new HashSet<string>();
-            var todaysViewers = cph.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
+            var todaysViewers = cph.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true) ?? new List<string>();
 
             if (!cph.TryGetArg("users", out object usersObj))
             {
@@ -638,12 +649,8 @@ public class CPHInline
 
                 todayViewers.Add(displayName);
                 cph.SetGlobalVar(VkLiveTodaysViewersKey, todayViewers, true);
-                cph.SetArgument("service", "VKVideoLive");
-                cph.SetArgument("title", "Новый зритель");
-                cph.SetArgument("message", displayName);
-                cph.ExecuteMethod("MiniChat Method Collection", "CreateCustomEvent");
+                CreateViewerEvent(cph, "Новый зритель", displayName);
                 cph.LogInfo("Новый зритель: " + displayName);
-                Thread.Sleep(200); // Без задержки лента миничата пропускает часть событий.
             }
         }
         catch (Exception e)
