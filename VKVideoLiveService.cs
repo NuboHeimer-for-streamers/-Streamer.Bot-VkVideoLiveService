@@ -283,6 +283,57 @@ public class CPHInline
         }
     }
 
+    public bool ActivateReward()
+    {
+        if (!args.ContainsKey("channel_name"))
+            return false;
+
+        if (!args.ContainsKey("rewardName"))
+        {
+            Logger.Error("[VKVideoLive reward activate] Аргумент rewardName не передан.");
+            return false;
+        }
+
+        string channelName = args["channel_name"].ToString();
+        string rewardName = args["rewardName"].ToString();
+        string rewardTextArg = args.ContainsKey("rewardText") ? args["rewardText"]?.ToString() : string.Empty;
+        string effectiveMessage = string.IsNullOrWhiteSpace(rewardTextArg) ? rewardName : rewardTextArg;
+
+        if (string.IsNullOrWhiteSpace(channelName))
+        {
+            Logger.Error("[VKVideoLive reward activate] Значение channel_name пустое.");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(rewardName))
+        {
+            Logger.Error("[VKVideoLive reward activate] Значение rewardName пустое.");
+            return false;
+        }
+
+        try
+        {
+            var authState = EnsureValidDevApiAuth(CPH);
+            if (authState == null)
+                return false;
+
+            string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
+            if (string.IsNullOrEmpty(rewardId))
+            {
+                Logger.Error("[VKVideoLive reward activate] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                return false;
+            }
+
+            Service.ActivateRewardDev(channelName, rewardId, authState.AccessToken, effectiveMessage);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Logger.Error("[VKVideoLive reward activate] Ошибка при активации награды по имени", e.Message);
+            return false;
+        }
+    }
+
     public bool GetRewardsForManage()
     {
         return GetRewardsForManageInternal(CPH);
@@ -569,17 +620,6 @@ public class CPHInline
         return true;
     }
 
-    public bool GetTotalAverageViewrs()
-    {
-        string channelName = args["channel_name"].ToString();
-        string token = args["token"].ToString();
-        var json = Service.GetAllStatistics(channelName, token);
-        JObject parsedJson = JObject.Parse(json);
-        int totalAverageVKVideoLiveViewers = parsedJson["data"]["analytics"]["total"]["viewersAverage"].Value<int>();
-        CPH.SetArgument("totalAverageVKVideoLiveViewers", totalAverageVKVideoLiveViewers);
-        return true;
-    }
-
     public bool VkAuthShowUi()
     {
         return VkAuthShowUiInternal(CPH);
@@ -781,23 +821,6 @@ public class VKVideoLiveApiService
         }
     }
 
-    public string GetAllStatistics(string channelName, string token)
-    {
-        string url = string.Format(ServiceBrowserApiHost + EndpointAllStatistics, channelName);
-        try
-        {
-            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
-            response.EnsureSuccessStatusCode();
-            return response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-        }
-        catch (HttpRequestException e)
-        {
-            Logger.Error("Error from client", e.Message);
-            return ("Error from client");
-        }
-    }
-
     public ChannelPointResponse GetChannelPoints(string channelUrl, string token)
     {
         string url = ServiceOfficialApiHost + EndpointChannelPoints + "?channel_url=" + Uri.EscapeDataString(channelUrl);
@@ -857,7 +880,42 @@ public class VKVideoLiveApiService
 
     public void ActivateRewardDev(string channelUrl, string rewardId, string token, string videoUrl)
     {
-        string url = ServiceOfficialApiHost + EndpointRewardActivateDev;
+        string url = ServiceOfficialApiHost
+                     + EndpointRewardActivateDev
+                     + "?channel_url=" + Uri.EscapeDataString(channelUrl);
+
+        object messagePart;
+
+        if (!string.IsNullOrWhiteSpace(videoUrl)
+            && Uri.TryCreate(videoUrl, UriKind.Absolute, out Uri uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            messagePart = new
+            {
+                link = new
+                {
+                    content = videoUrl,
+                    url = videoUrl
+                }
+            };
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(videoUrl))
+            {
+                Logger.Error("[VKVideoLive points] Error activating reward via DevAPI", "message text is empty");
+                return;
+            }
+
+            string textContent = videoUrl;
+            messagePart = new
+            {
+                text = new
+                {
+                    content = textContent
+                }
+            };
+        }
 
         var body = new
         {
@@ -868,14 +926,7 @@ public class VKVideoLiveApiService
                 {
                     parts = new[]
                     {
-                        new
-                        {
-                            link = new
-                            {
-                                content = videoUrl,
-                                url = videoUrl
-                            }
-                        }
+                        messagePart
                     }
                 }
             }
@@ -888,7 +939,14 @@ public class VKVideoLiveApiService
             Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             using HttpResponseMessage response = Client.PostAsync(url, content).GetAwaiter().GetResult();
-            response.EnsureSuccessStatusCode();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Logger.Error("[VKVideoLive points] Error activating reward via DevAPI",
+                    (int)response.StatusCode, response.StatusCode, responseBody);
+                return;
+            }
         }
         catch (HttpRequestException e)
         {
