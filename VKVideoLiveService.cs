@@ -679,13 +679,10 @@ public class VKVideoLiveApiService
     internal const string ServiceBrowserApiHost = "https://api.live.vkvideo.ru/v1";
     // Official DevAPI host (to be used for OAuth/DevAPI-specific calls)
     internal const string ServiceOfficialApiHost = "https://apidev.live.vkvideo.ru/v1";
-    private const string EndpointTplGetUserData = "/blog/{0}/public_video_stream/chat/user/";
-    private const string EndpointSetRewardState = "/channel/{0}/manage/point/reward/{1}/enabled";
     private const string EndpointChannelPoints = "/channel_point/rewards/manage_info";
     private const string EndpointRewardEnableDev = "/channel_point/reward/enable";
     private const string EndpointRewardDisableDev = "/channel_point/reward/disable";
     private const string EndpointRewardActivateDev = "/channel_point/reward/activate";
-    private const string EndpointGetSeasonStatistics = "/channel/{0}/support_program/season/{1}/statistic/{2}/daily/";
     private const string EndpointAllStatistics = "/channel/{0}/analytics?aggregate_interval=day&date_interval=30day";
     private const string EndpointSongRequest = "/channel/{0}/stream/slot/default/point/reward/{1}/activate";
 
@@ -782,12 +779,6 @@ public class VKVideoLiveApiService
         {
             Logger.Error("Error from client", e.Message);
         }
-    }
-
-    public string GetSeasonStatistics(string channelName, string seasonNumber, string requestType, string token)
-    {
-        string response = "stub";
-        return response;
     }
 
     public string GetAllStatistics(string channelName, string token)
