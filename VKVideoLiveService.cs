@@ -417,20 +417,56 @@ public class CPHInline
             if (authState == null)
                 return false;
 
-            var viewers = _vkVideoLiveApiService.GetChatMembers(channelName, authState.AccessToken, 200);
+            // Запрос к API
+            string url = VKVideoLiveApiService.ServiceOfficialApiHost
+                         + "/chat/members?channel_url=" + Uri.EscapeDataString(channelName)
+                         + "&limit=200";
 
-            for (int i = 0; i < viewers.Count; i++)
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authState.AccessToken);
+            using HttpResponseMessage response = _client.GetAsync(url).GetAwaiter().GetResult();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            response.EnsureSuccessStatusCode();
+
+            // Текущий ответ API содержит data.users, а не data.members
+            var rootToken = JObject.Parse(responseBody);
+            var usersToken = rootToken["data"]?["users"] as JArray;
+            int apiCount = usersToken?.Count ?? 0;
+
+            cph.LogInfo("[VKVideoLive get viewers] Канал: '" + channelName + "', получено от API элементов: " + apiCount);
+
+            if (usersToken != null)
             {
-                var userData = new Dictionary<string, object>
+                foreach (var user in usersToken)
                 {
-                    { "userName", viewers[i].DisplayName },
-                    { "id", viewers[i].ID },
-                };
-                viewersList.Add(userData);
+                    string nick = user["nick"]?.ToString();
+                    int id = user["id"]?.ToObject<int>() ?? 0;
+                    string avatarUrl = user["avatar_url"]?.ToString();
+
+                    var userData = new Dictionary<string, object>
+                    {
+                        { "userName", nick },
+                        { "id", id },
+                        { "avatarUrl", avatarUrl }
+                    };
+                    viewersList.Add(userData);
+                }
+            }
+
+            if (viewersList.Count > 0)
+            {
+                var viewersNames = string.Join(", ", viewersList
+                    .Select(v => v.ContainsKey("userName") && v["userName"] != null ? v["userName"].ToString() : string.Empty)
+                    .Where(name => !string.IsNullOrWhiteSpace(name)));
+                cph.LogInfo("[VKVideoLive get viewers] Получен список зрителей (" + viewersList.Count + "): " + viewersNames);
+            }
+            else
+            {
+                cph.LogInfo("[VKVideoLive get viewers] Список зрителей пуст.");
             }
 
             cph.SetArgument("users", viewersList);
-            cph.SetArgument("viewers_count", viewers.Count);
+            cph.SetArgument("viewers_count", viewersList.Count);
             cph.SetArgument("isLive", true);
             cph.SetArgument("isTest", false);
             cph.TriggerCodeEvent("VKVideoLive_PresentViewers", true);
@@ -617,7 +653,6 @@ public class CPHInline
 
         try
         {
-            cph.LogInfo("Попытка получить нового зрителя на вкпл");
             for (int i = 0; i < users.Count; i++)
             {
                 string displayName = users[i].ContainsKey("userName") ? users[i]["userName"]?.ToString() : null;
