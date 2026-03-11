@@ -349,7 +349,11 @@ public class CPHInline
 
         try
         {
-            var viewers = Service.GetViewers(channelName);
+            var authState = EnsureValidDevApiAuth(CPH);
+            if (authState == null)
+                return false;
+
+            var viewers = Service.GetChatMembers(channelName, authState.AccessToken, 200);
 
             for (int i = 0; i < viewers.Count; i++)
             {
@@ -723,6 +727,32 @@ public class VKVideoLiveApiService
         return userData.Count.users + userData.Count.moderators;
     }
 
+    public List<UserData> GetChatMembers(string channelUrl, string token, int limit)
+    {
+        if (limit <= 0 || limit > 200)
+            limit = 200;
+
+        string url = ServiceOfficialApiHost
+                     + "/chat/members?channel_url=" + Uri.EscapeDataString(channelUrl)
+                     + "&limit=" + limit.ToString();
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            var root = JsonConvert.DeserializeObject<ChatMembersRootResponse>(responseBody);
+            return root?.Data?.Members ?? new List<UserData>();
+        }
+        catch (HttpRequestException e)
+        {
+            Logger.Error("[VKVideoLive chat] Error fetching chat members", e.Message);
+            return new List<UserData>();
+        }
+    }
+
     public void ChangeRewardState(string channelName, string rewardId, string rewardState, string token)
     {
         string url = string.Format(ServiceBrowserApiHost + EndpointSetRewardState, channelName, rewardId);
@@ -972,6 +1002,18 @@ public class VKVideoLiveApiService
                 },
             };
         }
+    }
+
+    public class ChatMembersRootResponse
+    {
+        [JsonProperty("data")]
+        public ChatMembersData Data { get; set; }
+    }
+
+    public class ChatMembersData
+    {
+        [JsonProperty("members")]
+        public List<UserData> Members { get; set; } = new List<UserData>();
     }
 
     public class ChannelPointRootResponse
