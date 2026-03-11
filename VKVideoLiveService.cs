@@ -29,6 +29,20 @@ using System.Drawing;
 
 public class CPHInline
 {
+    private const string VkLiveTodaysViewersKey = "VkLiveTodaysViewers";
+    private const string VkLivePreviousPresentViewersKey = "VkLivePreviousPresentViewers";
+    private const string VkLiveLastRandomViewerKey = "VkLiveLastRandomViewer";
+
+    private const string VkLiveAuthAccessTokenKey = "VkLiveAuthAccessToken";
+    private const string VkLiveAuthRefreshTokenKey = "VkLiveAuthRefreshToken";
+    private const string VkLiveAuthExpiresAtUtcKey = "VkLiveAuthExpiresAtUtc";
+
+    private const string VkLiveAuthClientIdKey = "VkLiveAuthClientId";
+    private const string VkLiveAuthClientSecretKey = "VkLiveAuthClientSecret";
+    private const string VkLiveAuthRedirectUriKey = "VkLiveAuthRedirectUri";
+    private const string VkLiveAuthUserNickKey = "VkLiveAuthUserNick";
+    private const string VkLiveAuthUserAvatarUrlKey = "VkLiveAuthUserAvatarUrl";
+
     private readonly HttpClient Client = new();
     private Logger Logger;
     private VKVideoLiveApiService Service;
@@ -39,44 +53,41 @@ public class CPHInline
         Service = new VKVideoLiveApiService(Client, Logger);
         VkAuthService = new VkOAuthService(Client, Logger);
 
-        if (CPH.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true) == null)
-            CPH.SetGlobalVar("vkvideolive_todays_viewers", new List<string>(), true);
-        if (CPH.GetGlobalVar<HashSet<string>>("vkvideolivePreviousPresentViewers", true) == null)
-            CPH.SetGlobalVar("vkvideolivePreviousPresentViewers", new HashSet<string>(), true);
+        if (CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true) == null)
+            CPH.SetGlobalVar(VkLiveTodaysViewersKey, new List<string>(), true);
+        if (CPH.GetGlobalVar<HashSet<string>>(VkLivePreviousPresentViewersKey, true) == null)
+            CPH.SetGlobalVar(VkLivePreviousPresentViewersKey, new HashSet<string>(), true);
 
-        // Инициализация глобальных переменных для VK OAuth (если ещё не созданы)
-        if (CPH.GetGlobalVar<string>("VkAuthAccessToken", true) == null)
-            CPH.SetGlobalVar("VkAuthAccessToken", string.Empty, true);
-        if (CPH.GetGlobalVar<string>("VkAuthRefreshToken", true) == null)
-            CPH.SetGlobalVar("VkAuthRefreshToken", string.Empty, true);
-        if (CPH.GetGlobalVar<string>("VkAuthExpiresAtUtc", true) == null)
-            CPH.SetGlobalVar("VkAuthExpiresAtUtc", string.Empty, true);
+        if (CPH.GetGlobalVar<string>(VkLiveAuthAccessTokenKey, true) == null)
+            CPH.SetGlobalVar(VkLiveAuthAccessTokenKey, string.Empty, true);
+        if (CPH.GetGlobalVar<string>(VkLiveAuthRefreshTokenKey, true) == null)
+            CPH.SetGlobalVar(VkLiveAuthRefreshTokenKey, string.Empty, true);
+        if (CPH.GetGlobalVar<string>(VkLiveAuthExpiresAtUtcKey, true) == null)
+            CPH.SetGlobalVar(VkLiveAuthExpiresAtUtcKey, string.Empty, true);
 
-        if (CPH.GetGlobalVar<string>("VkAuthClientId", true) == null)
-            CPH.SetGlobalVar("VkAuthClientId", string.Empty, true);
-        if (CPH.GetGlobalVar<string>("VkAuthClientSecret", true) == null)
-            CPH.SetGlobalVar("VkAuthClientSecret", string.Empty, true);
-        if (CPH.GetGlobalVar<string>("VkAuthRedirectUri", true) == null)
-            CPH.SetGlobalVar("VkAuthRedirectUri", string.Empty, true);
-        if (CPH.GetGlobalVar<string>("VkAuthScope", true) == null)
-            CPH.SetGlobalVar("VkAuthScope", string.Empty, true);
-        if (CPH.GetGlobalVar<string>("VkAuthUserNick", true) == null)
-            CPH.SetGlobalVar("VkAuthUserNick", string.Empty, true);
-        if (CPH.GetGlobalVar<string>("VkAuthUserAvatarUrl", true) == null)
-            CPH.SetGlobalVar("VkAuthUserAvatarUrl", string.Empty, true);
+        if (CPH.GetGlobalVar<string>(VkLiveAuthClientIdKey, true) == null)
+            CPH.SetGlobalVar(VkLiveAuthClientIdKey, string.Empty, true);
+        if (CPH.GetGlobalVar<string>(VkLiveAuthClientSecretKey, true) == null)
+            CPH.SetGlobalVar(VkLiveAuthClientSecretKey, string.Empty, true);
+        if (CPH.GetGlobalVar<string>(VkLiveAuthRedirectUriKey, true) == null)
+            CPH.SetGlobalVar(VkLiveAuthRedirectUriKey, string.Empty, true);
+        if (CPH.GetGlobalVar<string>(VkLiveAuthUserNickKey, true) == null)
+            CPH.SetGlobalVar(VkLiveAuthUserNickKey, string.Empty, true);
+        if (CPH.GetGlobalVar<string>(VkLiveAuthUserAvatarUrlKey, true) == null)
+            CPH.SetGlobalVar(VkLiveAuthUserAvatarUrlKey, string.Empty, true);
 
         CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
     }
 
     public bool ClearTodaysViewers()
     {
-        CPH.SetGlobalVar("vkvideolive_todays_viewers", new List<string>(), true);
+        CPH.SetGlobalVar(VkLiveTodaysViewersKey, new List<string>(), true);
         return true;
     }
 
     public bool ClearPreviousPresentViewers()
     {
-        CPH.SetGlobalVar("vkvideolivePreviousPresentViewers", new HashSet<string>(), true);
+        CPH.SetGlobalVar(VkLivePreviousPresentViewersKey, new HashSet<string>(), true);
         return true;
     }
 
@@ -189,7 +200,7 @@ public class CPHInline
             return false;
 
         string channelName = args["channel_name"].ToString();
-        string last_random_viewer = CPH.GetGlobalVar<String>("last_random_viewer", true);
+        string last_random_viewer = CPH.GetGlobalVar<string>(VkLiveLastRandomViewerKey, true);
 
         try
         {
@@ -214,7 +225,7 @@ public class CPHInline
             }
 
             CPH.SetArgument("viewer", viewer.DisplayName);
-            CPH.SetGlobalVar("last_random_viewer", viewer.DisplayName, true);
+            CPH.SetGlobalVar(VkLiveLastRandomViewerKey, viewer.DisplayName, true);
         }
         catch (Exception e)
         {
@@ -252,8 +263,8 @@ public class CPHInline
     {
         try
         {
-            var previousPresent = cph.GetGlobalVar<HashSet<string>>("vkvideolivePreviousPresentViewers", true) ?? new HashSet<string>();
-            var todaysViewers = cph.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true);
+            var previousPresent = cph.GetGlobalVar<HashSet<string>>(VkLivePreviousPresentViewersKey, true) ?? new HashSet<string>();
+            var todaysViewers = cph.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
 
             if (!cph.TryGetArg("users", out object usersObj))
             {
@@ -284,7 +295,7 @@ public class CPHInline
                     newTodayNames.Add(name);
                 }
             }
-            cph.SetGlobalVar("vkvideolive_todays_viewers", todaysViewers, true);
+            cph.SetGlobalVar(VkLiveTodaysViewersKey, todaysViewers, true);
 
             foreach (var name in currentNames)
             {
@@ -300,7 +311,7 @@ public class CPHInline
                     CreateViewerEvent(cph, name, "Пропал(а) из списка зрителей.");
             }
 
-            cph.SetGlobalVar("vkvideolivePreviousPresentViewers", new HashSet<string>(currentNamesForSaving), true);
+            cph.SetGlobalVar(VkLivePreviousPresentViewersKey, new HashSet<string>(currentNamesForSaving), true);
             return true;
         }
         catch (Exception e)
@@ -327,7 +338,7 @@ public class CPHInline
             return true;
         }
 
-        List<string> vkvideolive_todays_viewers = CPH.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true);
+        List<string> vkvideolive_todays_viewers = CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
 
         try
         {
@@ -341,7 +352,7 @@ public class CPHInline
                     continue;
 
                 vkvideolive_todays_viewers.Add(displayName);
-                CPH.SetGlobalVar("vkvideolive_todays_viewers", vkvideolive_todays_viewers, true);
+                CPH.SetGlobalVar(VkLiveTodaysViewersKey, vkvideolive_todays_viewers, true);
                 CPH.SetArgument("service", "VKVideoLive");
                 CPH.SetArgument("title", "Новый зритель");
                 CPH.SetArgument("message", displayName);
@@ -360,9 +371,9 @@ public class CPHInline
 
     public bool AddFirstWordViewer()
     {
-        List<string> vkvideolive_todays_viewers = CPH.GetGlobalVar<List<string>>("vkvideolive_todays_viewers", true);
+        List<string> vkvideolive_todays_viewers = CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
         vkvideolive_todays_viewers.Add(args["userName"].ToString());
-        CPH.SetGlobalVar("vkvideolive_todays_viewers", vkvideolive_todays_viewers, true);
+        CPH.SetGlobalVar(VkLiveTodaysViewersKey, vkvideolive_todays_viewers, true);
         return true;
     }
 
@@ -649,17 +660,19 @@ public class VkOAuthService
     private const string TokenUrl = "https://api.live.vkvideo.ru/oauth/server/token";
     private const string RevokeUrl = "https://api.live.vkvideo.ru/oauth/server/revoke";
 
-    private const string GlobalAccessTokenKey = "VkAuthAccessToken";
-    private const string GlobalRefreshTokenKey = "VkAuthRefreshToken";
-    private const string GlobalExpiresAtKey = "VkAuthExpiresAtUtc";
+    private const string DefaultScope =
+        "channel:credentials,channel:stream:settings,chat:message:send,chat:settings,channel:points,channel:points:rewards,channel:points:rewards:demands,channel:roles";
 
-    private const string GlobalClientIdKey = "VkAuthClientId";
-    private const string GlobalClientSecretKey = "VkAuthClientSecret";
-    private const string GlobalRedirectUriKey = "VkAuthRedirectUri";
-    private const string GlobalScopeKey = "VkAuthScope";
+    private const string GlobalAccessTokenKey = "VkLiveAuthAccessToken";
+    private const string GlobalRefreshTokenKey = "VkLiveAuthRefreshToken";
+    private const string GlobalExpiresAtKey = "VkLiveAuthExpiresAtUtc";
 
-    internal const string GlobalUserNickKey = "VkAuthUserNick";
-    internal const string GlobalUserAvatarUrlKey = "VkAuthUserAvatarUrl";
+    private const string GlobalClientIdKey = "VkLiveAuthClientId";
+    private const string GlobalClientSecretKey = "VkLiveAuthClientSecret";
+    private const string GlobalRedirectUriKey = "VkLiveAuthRedirectUri";
+
+    internal const string GlobalUserNickKey = "VkLiveAuthUserNick";
+    internal const string GlobalUserAvatarUrlKey = "VkLiveAuthUserAvatarUrl";
 
     public VkOAuthService(HttpClient client, Logger logger)
     {
@@ -697,16 +710,13 @@ public class VkOAuthService
         string clientId = cph.GetGlobalVar<string>(GlobalClientIdKey, true);
         string clientSecret = cph.GetGlobalVar<string>(GlobalClientSecretKey, true);
         string redirectUri = cph.GetGlobalVar<string>(GlobalRedirectUriKey, true);
-        string scope = cph.GetGlobalVar<string>(GlobalScopeKey, true);
+        string scope = DefaultScope;
 
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret) || string.IsNullOrEmpty(redirectUri))
         {
             _logger.Error("[VKVideoLive auth] Не заданы client_id, client_secret или redirect_uri в глобальных переменных Streamer.bot");
             throw new InvalidOperationException("VK auth config is not set in global variables.");
         }
-
-        if (string.IsNullOrEmpty(scope))
-            scope = string.Empty;
 
         return (clientId, clientSecret, redirectUri, scope);
     }
