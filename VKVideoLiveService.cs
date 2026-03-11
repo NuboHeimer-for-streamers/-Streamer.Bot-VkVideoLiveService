@@ -43,6 +43,8 @@ public class CPHInline
     private const string VkLiveAuthUserNickKey = "VkLiveAuthUserNick";
     private const string VkLiveAuthUserAvatarUrlKey = "VkLiveAuthUserAvatarUrl";
 
+    private const string VkLiveRewardsCacheKey = "VkLiveRewardsCache";
+
     private readonly HttpClient Client = new();
     private Logger Logger;
     private VKVideoLiveApiService Service;
@@ -76,6 +78,9 @@ public class CPHInline
         if (CPH.GetGlobalVar<string>(VkLiveAuthUserAvatarUrlKey, true) == null)
             CPH.SetGlobalVar(VkLiveAuthUserAvatarUrlKey, string.Empty, true);
 
+        if (CPH.GetGlobalVar<Dictionary<string, string>>(VkLiveRewardsCacheKey, true) == null)
+            CPH.SetGlobalVar(VkLiveRewardsCacheKey, new Dictionary<string, string>(), true);
+
         CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
     }
 
@@ -93,25 +98,78 @@ public class CPHInline
 
     public bool OnReward()
     {
-        if (!args.ContainsKey("channel_name"))
-            return false;
-
-        string channelName = args["channel_name"].ToString();
-        string rewardId = args["rewardId"].ToString();
-        string rewardState = "On";
-        string token = args["token"].ToString();
-
         try
         {
-            Service.ChangeRewardState(channelName, rewardId, rewardState, token);
-            CPH.LogInfo("[VKVideoLive reward manager] Reward with id " + rewardId + " enabled");
+            if (!args.ContainsKey("channel_name"))
+                return false;
+
+            if (!args.ContainsKey("rewardName"))
+            {
+                Logger.Error("[VKVideoLive reward manager] Аргумент rewardName не передан.");
+                return false;
+            }
+
+            string channelName = args["channel_name"].ToString();
+            string rewardName = args["rewardName"].ToString();
+
+            if (string.IsNullOrWhiteSpace(channelName))
+            {
+                Logger.Error("[VKVideoLive reward manager] Значение channel_name пустое.");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(rewardName))
+            {
+                Logger.Error("[VKVideoLive reward manager] Значение rewardName пустое.");
+                return false;
+            }
+
+            var authState = EnsureValidDevApiAuth(CPH);
+            if (authState == null)
+                return false;
+
+            string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
+            if (string.IsNullOrEmpty(rewardId))
+            {
+                Logger.Error("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                return false;
+            }
+
+            Service.EnableRewardDev(channelName, rewardId, authState.AccessToken);
+            return true;
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive reward manager] Error enabling reward with id " + rewardId, e.Message);
+            Logger.Error("[VKVideoLive reward manager] Ошибка при включении награды по имени", e.Message);
+            return false;
+        }
+    }
+
+    private string ResolveRewardIdByName(string channelName, string rewardName, string accessToken)
+    {
+        var cache = CPH.GetGlobalVar<Dictionary<string, string>>(VkLiveRewardsCacheKey, true)
+                    ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (cache.TryGetValue(rewardName, out string rewardId) && !string.IsNullOrEmpty(rewardId))
+            return rewardId;
+
+        var channelPoints = Service.GetChannelPoints(channelName, accessToken);
+        if (channelPoints == null || channelPoints.Rewards == null || channelPoints.Rewards.Count == 0)
+            return null;
+
+        var updatedCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var reward in channelPoints.Rewards)
+        {
+            if (!string.IsNullOrWhiteSpace(reward.Name) && !string.IsNullOrWhiteSpace(reward.Id))
+                updatedCache[reward.Name] = reward.Id;
         }
 
-        return true;
+        CPH.SetGlobalVar(VkLiveRewardsCacheKey, updatedCache, true);
+
+        if (updatedCache.TryGetValue(rewardName, out rewardId) && !string.IsNullOrEmpty(rewardId))
+            return rewardId;
+
+        return null;
     }
 
     public bool OffReward()
@@ -158,6 +216,62 @@ public class CPHInline
         }
 
         return true;
+    }
+
+    public bool GetRewardsForManage()
+    {
+        return GetRewardsForManageInternal(CPH);
+    }
+
+    private bool GetRewardsForManageInternal(IInlineInvokeProxy cph)
+    {
+        try
+        {
+            if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
+            {
+                Logger.Error("[VKVideoLive points] Аргумент channel_name не передан.");
+                return false;
+            }
+
+            string channelName = channelNameObj.ToString();
+            if (string.IsNullOrWhiteSpace(channelName))
+            {
+                Logger.Error("[VKVideoLive points] Значение channel_name пустое.");
+                return false;
+            }
+
+            var authState = EnsureValidDevApiAuth(cph);
+            if (authState == null)
+                return false;
+
+            var channelPoints = Service.GetChannelPoints(channelName, authState.AccessToken);
+            if (channelPoints == null || channelPoints.Rewards == null || channelPoints.Rewards.Count == 0)
+            {
+                Logger.Debug("[VKVideoLive points] Награды для управления не найдены.");
+                return true;
+            }
+
+             var rewardsCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var reward in channelPoints.Rewards)
+            {
+                bool isEnabled = !reward.IsDisabled;
+
+                if (!string.IsNullOrWhiteSpace(reward.Name) && !string.IsNullOrWhiteSpace(reward.Id))
+                {
+                    rewardsCache[reward.Name] = reward.Id;
+                }
+            }
+
+            cph.SetGlobalVar(VkLiveRewardsCacheKey, rewardsCache, true);
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            Logger.Error("[VKVideoLive points] Ошибка при получении списка наград для управления", e.Message);
+            return false;
+        }
     }
 
     public bool GetViewers()
@@ -443,6 +557,40 @@ public class CPHInline
             return false;
         }
     }
+
+    private VkAuthState EnsureValidDevApiAuth(IInlineInvokeProxy cph)
+    {
+        try
+        {
+            if (VkAuthService == null)
+                VkAuthService = new VkOAuthService(Client, Logger);
+
+            var state = VkAuthService.LoadStateFromGlobals(cph);
+            if (state == null || string.IsNullOrEmpty(state.AccessToken))
+            {
+                Logger.Error("[VKVideoLive auth] Нет access_token для DevAPI. Выполните первоначальную авторизацию.");
+                return null;
+            }
+
+            if (state.ExpiresAtUtc.HasValue)
+            {
+                var now = DateTime.UtcNow;
+                // Обновляем токен, если он уже истёк или истекает в ближайшую минуту
+                if (state.ExpiresAtUtc.Value <= now.AddMinutes(1))
+                {
+                    state = VkAuthService.RefreshTokens(state, cph);
+                    VkAuthService.SaveStateToGlobals(state, cph);
+                }
+            }
+
+            return state;
+        }
+        catch (Exception e)
+        {
+            Logger.Error("[VKVideoLive auth] Не удалось проверить/обновить токен DevAPI", e.Message);
+            return null;
+        }
+    }
 }
 
 public class VKVideoLiveApiService
@@ -455,6 +603,8 @@ public class VKVideoLiveApiService
     internal const string ServiceOfficialApiHost = "https://apidev.live.vkvideo.ru/v1";
     private const string EndpointTplGetUserData = "/blog/{0}/public_video_stream/chat/user/";
     private const string EndpointSetRewardState = "/channel/{0}/manage/point/reward/{1}/enabled";
+    private const string EndpointChannelPoints = "/channel_point/rewards/manage_info";
+    private const string EndpointRewardEnableDev = "/channel_point/reward/enable";
     private const string EndpointGetSeasonStatistics = "/channel/{0}/support_program/season/{1}/statistic/{2}/daily/";
     private const string EndpointAllStatistics = "/channel/{0}/analytics?aggregate_interval=day&date_interval=30day";
     private const string EndpointSongRequest = "/channel/{0}/stream/slot/default/point/reward/{1}/activate";
@@ -596,6 +746,53 @@ public class VKVideoLiveApiService
         }
     }
 
+    public ChannelPointResponse GetChannelPoints(string channelUrl, string token)
+    {
+        string url = ServiceOfficialApiHost + EndpointChannelPoints + "?channel_url=" + Uri.EscapeDataString(channelUrl);
+        try
+        {
+            Logger.Debug("[VKVideoLive points] DevAPI GET {0}", url);
+
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            string preview = responseBody;
+            if (!string.IsNullOrEmpty(preview) && preview.Length > 500)
+                preview = preview.Substring(0, 500) + "...(trimmed)";
+
+            Logger.Debug("[VKVideoLive points] DevAPI raw response: {0}", preview);
+
+            var root = JsonConvert.DeserializeObject<ChannelPointRootResponse>(responseBody);
+            return root?.Data;
+        }
+        catch (HttpRequestException e)
+        {
+            Logger.Error("[VKVideoLive points] Error fetching channel points", e.Message);
+            return null;
+        }
+    }
+
+    public void EnableRewardDev(string channelUrl, string rewardId, string token)
+    {
+        string url = ServiceOfficialApiHost
+                     + EndpointRewardEnableDev
+                     + "?channel_url=" + Uri.EscapeDataString(channelUrl)
+                     + "&reward_id=" + Uri.EscapeDataString(rewardId);
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var content = new StringContent("{}", Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = Client.PostAsync(url, content).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+        }
+        catch (HttpRequestException e)
+        {
+            Logger.Error("[VKVideoLive points] Error enabling reward via DevAPI", e.Message);
+        }
+    }
+
     public class UserInfoResponse
     {
         [JsonProperty("owner")]
@@ -648,6 +845,48 @@ public class VKVideoLiveApiService
                 },
             };
         }
+    }
+
+    public class ChannelPointRootResponse
+    {
+        [JsonProperty("data")]
+        public ChannelPointResponse Data { get; set; }
+    }
+
+    public class ChannelPointResponse
+    {
+        [JsonProperty("balance")]
+        public ChannelPointBalance Balance { get; set; }
+
+        [JsonProperty("rewards")]
+        public List<ChannelPointReward> Rewards { get; set; } = new List<ChannelPointReward>();
+    }
+
+    public class ChannelPointBalance
+    {
+        [JsonProperty("available")]
+        public long Available { get; set; }
+
+        [JsonProperty("total_earned")]
+        public long TotalEarned { get; set; }
+
+        [JsonProperty("total_spent")]
+        public long TotalSpent { get; set; }
+    }
+
+    public class ChannelPointReward
+    {
+        [JsonProperty("id")]
+        public string Id { get; set; }
+
+        [JsonProperty("name")]
+        public string Name { get; set; }
+
+        [JsonProperty("price")]
+        public long Price { get; set; }
+
+        [JsonProperty("is_disabled")]
+        public bool IsDisabled { get; set; }
     }
 }
 
