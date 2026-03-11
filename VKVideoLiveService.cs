@@ -1269,6 +1269,7 @@ public class VkOAuthService
 
             if (!response.IsSuccessStatusCode)
             {
+                cph.LogWarn("[VKVideoLive auth] Не удалось получить current_user: " + response.StatusCode);
                 return;
             }
 
@@ -1285,7 +1286,7 @@ public class VkOAuthService
         }
         catch (Exception e)
         {
-            throw new InvalidOperationException("[VKVideoLive auth] Не удалось обновить информацию о пользователе (current_user): " + e.Message, e);
+            cph.LogWarn("[VKVideoLive auth] Не удалось обновить информацию о пользователе (current_user): " + e.Message);
         }
     }
 
@@ -1377,93 +1378,79 @@ public class VkOAuthService
 
     private VkAuthState ExchangeCodeForTokens(string code, string clientId, string clientSecret, string redirectUri)
     {
-        try
+        var form = new List<KeyValuePair<string, string>>
         {
-            var form = new List<KeyValuePair<string, string>>
-            {
-                new KeyValuePair<string, string>("grant_type", "authorization_code"),
-                new KeyValuePair<string, string>("code", code),
-                new KeyValuePair<string, string>("redirect_uri", redirectUri)
-            };
+            new KeyValuePair<string, string>("grant_type", "authorization_code"),
+            new KeyValuePair<string, string>("code", code),
+            new KeyValuePair<string, string>("redirect_uri", redirectUri)
+        };
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
-            {
-                Content = new FormUrlEncodedContent(form)
-            };
-
-            string basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
-            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
-
-            using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
-            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new InvalidOperationException("VK token endpoint returned non-success status code: " + response.StatusCode);
-            }
-
-            var tokenResponse = JsonConvert.DeserializeObject<VkTokenResponse>(responseBody);
-            if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
-                throw new InvalidOperationException("Token response is empty.");
-
-            var state = new VkAuthState
-            {
-                AccessToken = tokenResponse.AccessToken,
-                RefreshToken = tokenResponse.RefreshToken,
-                ExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
-            };
-
-            return state;
-        }
-        catch (Exception e)
+        using var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
         {
-            throw;
+            Content = new FormUrlEncodedContent(form)
+        };
+
+        string basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
+
+        using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
+        string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException("VK token endpoint returned non-success status code: " + response.StatusCode);
         }
+
+        var tokenResponse = JsonConvert.DeserializeObject<VkTokenResponse>(responseBody);
+        if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
+            throw new InvalidOperationException("Token response is empty.");
+
+        var state = new VkAuthState
+        {
+            AccessToken = tokenResponse.AccessToken,
+            RefreshToken = tokenResponse.RefreshToken,
+            ExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
+        };
+
+        return state;
     }
 
     private VkAuthState RefreshTokensInternal(string refreshToken, string clientId, string clientSecret)
     {
-        try
+        var form = new List<KeyValuePair<string, string>>
         {
-            var form = new List<KeyValuePair<string, string>>
-            {
-                new KeyValuePair<string, string>("grant_type", "refresh_token"),
-                new KeyValuePair<string, string>("refresh_token", refreshToken)
-            };
+            new KeyValuePair<string, string>("grant_type", "refresh_token"),
+            new KeyValuePair<string, string>("refresh_token", refreshToken)
+        };
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
-            {
-                Content = new FormUrlEncodedContent(form)
-            };
-
-            string basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
-            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
-
-            using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
-            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new InvalidOperationException("VK token endpoint returned non-success status code (refresh): " + response.StatusCode);
-            }
-
-            var tokenResponse = JsonConvert.DeserializeObject<VkTokenResponse>(responseBody);
-            if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
-                throw new InvalidOperationException("Token response is empty.");
-
-            var state = new VkAuthState
-            {
-                AccessToken = tokenResponse.AccessToken,
-                RefreshToken = string.IsNullOrEmpty(tokenResponse.RefreshToken) ? refreshToken : tokenResponse.RefreshToken,
-                ExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
-            };
-
-            return state;
-        }
-        catch (Exception e)
+        using var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
         {
-            throw;
+            Content = new FormUrlEncodedContent(form)
+        };
+
+        string basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
+
+        using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
+        string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException("VK token endpoint returned non-success status code (refresh): " + response.StatusCode);
         }
+
+        var tokenResponse = JsonConvert.DeserializeObject<VkTokenResponse>(responseBody);
+        if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
+            throw new InvalidOperationException("Token response is empty.");
+
+        var state = new VkAuthState
+        {
+            AccessToken = tokenResponse.AccessToken,
+            RefreshToken = string.IsNullOrEmpty(tokenResponse.RefreshToken) ? refreshToken : tokenResponse.RefreshToken,
+            ExpiresAtUtc = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
+        };
+
+        return state;
     }
 
     private void RevokeToken(string token, string tokenType, IInlineInvokeProxy cph)
