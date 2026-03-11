@@ -96,40 +96,45 @@ public class CPHInline
 
     public bool OnReward()
     {
+        return OnRewardInternal(CPH);
+    }
+
+    private bool OnRewardInternal(IInlineInvokeProxy cph)
+    {
         try
         {
-            if (!args.ContainsKey("channel_name"))
+            if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
                 return false;
 
-            if (!args.ContainsKey("rewardName"))
+            if (!cph.TryGetArg("rewardName", out object rewardNameObj) || rewardNameObj == null)
             {
-                CPH.LogWarn("[VKVideoLive reward manager] Аргумент rewardName не передан.");
+                cph.LogWarn("[VKVideoLive reward manager] Аргумент rewardName не передан.");
                 return false;
             }
 
-            string channelName = args["channel_name"].ToString();
-            string rewardName = args["rewardName"].ToString();
+            string channelName = channelNameObj.ToString();
+            string rewardName = rewardNameObj.ToString();
 
             if (string.IsNullOrWhiteSpace(channelName))
             {
-                CPH.LogWarn("[VKVideoLive reward manager] Значение channel_name пустое.");
+                cph.LogWarn("[VKVideoLive reward manager] Значение channel_name пустое.");
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(rewardName))
             {
-                CPH.LogWarn("[VKVideoLive reward manager] Значение rewardName пустое.");
+                cph.LogWarn("[VKVideoLive reward manager] Значение rewardName пустое.");
                 return false;
             }
 
-            var authState = EnsureValidAuth(CPH);
+            var authState = EnsureValidAuth(cph);
             if (authState == null)
                 return false;
 
-            string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
+            string rewardId = ResolveRewardIdByName(cph, channelName, rewardName, authState.AccessToken);
             if (string.IsNullOrEmpty(rewardId))
             {
-                CPH.LogWarn("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                cph.LogWarn("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
                 return false;
             }
 
@@ -138,14 +143,14 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            CPH.LogWarn("[VKVideoLive reward manager] Ошибка при включении награды по имени, " + e.Message);
+            cph.LogWarn("[VKVideoLive reward manager] Ошибка при включении награды по имени, " + e.Message);
             return false;
         }
     }
 
-    private string ResolveRewardIdByName(string channelName, string rewardName, string accessToken)
+    private string ResolveRewardIdByName(IInlineInvokeProxy cph, string channelName, string rewardName, string accessToken)
     {
-        var cache = CPH.GetGlobalVar<Dictionary<string, string>>(VkLiveRewardsCacheKey, true)
+        var cache = cph.GetGlobalVar<Dictionary<string, string>>(VkLiveRewardsCacheKey, true)
                     ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         if (cache.TryGetValue(rewardName, out string rewardId) && !string.IsNullOrEmpty(rewardId))
@@ -162,7 +167,7 @@ public class CPHInline
                 updatedCache[reward.Name] = reward.Id;
         }
 
-        CPH.SetGlobalVar(VkLiveRewardsCacheKey, updatedCache, true);
+        cph.SetGlobalVar(VkLiveRewardsCacheKey, updatedCache, true);
 
         if (updatedCache.TryGetValue(rewardName, out rewardId) && !string.IsNullOrEmpty(rewardId))
             return rewardId;
@@ -172,40 +177,45 @@ public class CPHInline
 
     public bool OffReward()
     {
+        return OffRewardInternal(CPH);
+    }
+
+    private bool OffRewardInternal(IInlineInvokeProxy cph)
+    {
         try
         {
-            if (!args.ContainsKey("channel_name"))
+            if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
                 return false;
 
-            if (!args.ContainsKey("rewardName"))
+            if (!cph.TryGetArg("rewardName", out object rewardNameObj) || rewardNameObj == null)
             {
-                CPH.LogWarn("[VKVideoLive reward manager] Аргумент rewardName не передан.");
+                cph.LogWarn("[VKVideoLive reward manager] Аргумент rewardName не передан.");
                 return false;
             }
 
-            string channelName = args["channel_name"].ToString();
-            string rewardName = args["rewardName"].ToString();
+            string channelName = channelNameObj.ToString();
+            string rewardName = rewardNameObj.ToString();
 
             if (string.IsNullOrWhiteSpace(channelName))
             {
-                CPH.LogWarn("[VKVideoLive reward manager] Значение channel_name пустое.");
+                cph.LogWarn("[VKVideoLive reward manager] Значение channel_name пустое.");
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(rewardName))
             {
-                CPH.LogWarn("[VKVideoLive reward manager] Значение rewardName пустое.");
+                cph.LogWarn("[VKVideoLive reward manager] Значение rewardName пустое.");
                 return false;
             }
 
-            var authState = EnsureValidAuth(CPH);
+            var authState = EnsureValidAuth(cph);
             if (authState == null)
                 return false;
 
-            string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
+            string rewardId = ResolveRewardIdByName(cph, channelName, rewardName, authState.AccessToken);
             if (string.IsNullOrEmpty(rewardId))
             {
-                CPH.LogWarn("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                cph.LogWarn("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
                 return false;
             }
 
@@ -214,60 +224,65 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            CPH.LogWarn("[VKVideoLive reward manager] Ошибка при выключении награды по имени, " + e.Message);
+            cph.LogWarn("[VKVideoLive reward manager] Ошибка при выключении награды по имени, " + e.Message);
             return false;
         }
     }
 
     public bool SongRequest()
     {
-        if (!args.ContainsKey("channel_name"))
+        return SongRequestInternal(CPH);
+    }
+
+    private bool SongRequestInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
             return false;
 
-        if (!args.ContainsKey("rewardName"))
+        if (!cph.TryGetArg("rewardName", out object rewardNameObj) || rewardNameObj == null)
         {
-            CPH.LogWarn("[VKVideoLive song request] Аргумент rewardName не передан.");
+            cph.LogWarn("[VKVideoLive song request] Аргумент rewardName не передан.");
             return false;
         }
 
-        if (!args.ContainsKey("minichat.Data.MessageKit.1.Data.URL"))
+        if (!cph.TryGetArg("minichat.Data.MessageKit.1.Data.URL", out object urlObj) || urlObj == null)
         {
-            CPH.LogWarn("[VKVideoLive song request] Аргумент URL не передан.");
+            cph.LogWarn("[VKVideoLive song request] Аргумент URL не передан.");
             return false;
         }
 
-        string channelName = args["channel_name"].ToString();
-        string rewardName = args["rewardName"].ToString();
-        string videoUrl = args["minichat.Data.MessageKit.1.Data.URL"].ToString();
+        string channelName = channelNameObj.ToString();
+        string rewardName = rewardNameObj.ToString();
+        string videoUrl = urlObj.ToString();
 
         if (string.IsNullOrWhiteSpace(channelName))
         {
-            CPH.LogWarn("[VKVideoLive song request] Значение channel_name пустое.");
+            cph.LogWarn("[VKVideoLive song request] Значение channel_name пустое.");
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(rewardName))
         {
-            CPH.LogWarn("[VKVideoLive song request] Значение rewardName пустое.");
+            cph.LogWarn("[VKVideoLive song request] Значение rewardName пустое.");
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(videoUrl))
         {
-            CPH.LogWarn("[VKVideoLive song request] Значение URL пустое.");
+            cph.LogWarn("[VKVideoLive song request] Значение URL пустое.");
             return false;
         }
 
         try
         {
-            var authState = EnsureValidAuth(CPH);
+            var authState = EnsureValidAuth(cph);
             if (authState == null)
                 return false;
 
-            string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
+            string rewardId = ResolveRewardIdByName(cph, channelName, rewardName, authState.AccessToken);
             if (string.IsNullOrEmpty(rewardId))
             {
-                CPH.LogWarn("[VKVideoLive song request] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                cph.LogWarn("[VKVideoLive song request] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
                 return false;
             }
 
@@ -276,49 +291,57 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            CPH.LogWarn("[VKVideoLive song request] Ошибка при покупке награды по имени, " + e.Message);
+            cph.LogWarn("[VKVideoLive song request] Ошибка при покупке награды по имени, " + e.Message);
             return false;
         }
     }
 
     public bool ActivateReward()
     {
-        if (!args.ContainsKey("channel_name"))
+        return ActivateRewardInternal(CPH);
+    }
+
+    private bool ActivateRewardInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
             return false;
 
-        if (!args.ContainsKey("rewardName"))
+        if (!cph.TryGetArg("rewardName", out object rewardNameObj) || rewardNameObj == null)
         {
-            CPH.LogWarn("[VKVideoLive reward activate] Аргумент rewardName не передан.");
+            cph.LogWarn("[VKVideoLive reward activate] Аргумент rewardName не передан.");
             return false;
         }
 
-        string channelName = args["channel_name"].ToString();
-        string rewardName = args["rewardName"].ToString();
-        string rewardTextArg = args.ContainsKey("rewardText") ? args["rewardText"]?.ToString() : string.Empty;
+        string rewardTextArg = cph.TryGetArg("rewardText", out object rewardTextObj) && rewardTextObj != null
+            ? rewardTextObj.ToString()
+            : string.Empty;
+
+        string channelName = channelNameObj.ToString();
+        string rewardName = rewardNameObj.ToString();
         string effectiveMessage = string.IsNullOrWhiteSpace(rewardTextArg) ? rewardName : rewardTextArg;
 
         if (string.IsNullOrWhiteSpace(channelName))
         {
-            CPH.LogWarn("[VKVideoLive reward activate] Значение channel_name пустое.");
+            cph.LogWarn("[VKVideoLive reward activate] Значение channel_name пустое.");
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(rewardName))
         {
-            CPH.LogWarn("[VKVideoLive reward activate] Значение rewardName пустое.");
+            cph.LogWarn("[VKVideoLive reward activate] Значение rewardName пустое.");
             return false;
         }
 
         try
         {
-            var authState = EnsureValidAuth(CPH);
+            var authState = EnsureValidAuth(cph);
             if (authState == null)
                 return false;
 
-            string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
+            string rewardId = ResolveRewardIdByName(cph, channelName, rewardName, authState.AccessToken);
             if (string.IsNullOrEmpty(rewardId))
             {
-                CPH.LogWarn("[VKVideoLive reward activate] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                cph.LogWarn("[VKVideoLive reward activate] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
                 return false;
             }
 
@@ -327,7 +350,7 @@ public class CPHInline
         }
         catch (Exception e)
         {
-            CPH.LogWarn("[VKVideoLive reward activate] Ошибка при активации награды по имени, " + e.Message);
+            cph.LogWarn("[VKVideoLive reward activate] Ошибка при активации награды по имени, " + e.Message);
             return false;
         }
     }
@@ -390,15 +413,20 @@ public class CPHInline
 
     public bool GetViewers()
     {
-        if (!args.ContainsKey("channel_name"))
+        return GetViewersInternal(CPH);
+    }
+
+    private bool GetViewersInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
             return false;
 
-        string channelName = args["channel_name"].ToString();
-        List<Dictionary<string, object>> viewersList = new List<Dictionary<string, object>>();
+        string channelName = channelNameObj.ToString();
+        var viewersList = new List<Dictionary<string, object>>();
 
         try
         {
-            var authState = EnsureValidAuth(CPH);
+            var authState = EnsureValidAuth(cph);
             if (authState == null)
                 return false;
 
@@ -406,37 +434,43 @@ public class CPHInline
 
             for (int i = 0; i < viewers.Count; i++)
             {
-                Dictionary<string, object> userData = new Dictionary<string, object> {
-
+                var userData = new Dictionary<string, object>
+                {
                     { "userName", viewers[i].DisplayName },
                     { "id", viewers[i].ID },
                 };
                 viewersList.Add(userData);
             }
-            CPH.SetArgument("users", viewersList);
-            CPH.SetArgument("viewers_count", viewers.Count);
-            CPH.SetArgument("isLive", true);
-            CPH.SetArgument("isTest", false);
-            CPH.TriggerCodeEvent("VKVideoLive_PresentViewers", true);
+
+            cph.SetArgument("users", viewersList);
+            cph.SetArgument("viewers_count", viewers.Count);
+            cph.SetArgument("isLive", true);
+            cph.SetArgument("isTest", false);
+            cph.TriggerCodeEvent("VKVideoLive_PresentViewers", true);
         }
         catch (Exception e)
         {
-            CPH.LogWarn("[VKVideoLive get viewers] Error fetching viewers list, " + e.Message);
+            cph.LogWarn("[VKVideoLive get viewers] Error fetching viewers list, " + e.Message);
         }
         return true;
     }
 
     public bool GetRandomViewer()
     {
-        if (!args.ContainsKey("channel_name"))
+        return GetRandomViewerInternal(CPH);
+    }
+
+    private bool GetRandomViewerInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
             return false;
 
-        string channelName = args["channel_name"].ToString();
-        string lastRandomViewer = CPH.GetGlobalVar<string>(VkLiveLastRandomViewerKey, true);
+        string channelName = channelNameObj.ToString();
+        string lastRandomViewer = cph.GetGlobalVar<string>(VkLiveLastRandomViewerKey, true);
 
         try
         {
-            var authState = EnsureValidAuth(CPH);
+            var authState = EnsureValidAuth(cph);
             if (authState == null)
                 return false;
 
@@ -444,7 +478,7 @@ public class CPHInline
 
             if (viewers.Count == 0)
             {
-                CPH.SetArgument("viewer", "");
+                cph.SetArgument("viewer", "");
                 return true;
             }
 
@@ -460,12 +494,12 @@ public class CPHInline
                 }
             }
 
-            CPH.SetArgument("viewer", viewer.DisplayName);
-            CPH.SetGlobalVar(VkLiveLastRandomViewerKey, viewer.DisplayName, true);
+            cph.SetArgument("viewer", viewer.DisplayName);
+            cph.SetGlobalVar(VkLiveLastRandomViewerKey, viewer.DisplayName, true);
         }
         catch (Exception e)
         {
-            CPH.LogWarn("Error fetching viewers list, " + e.Message);
+            cph.LogWarn("Error fetching viewers list, " + e.Message);
         }
 
         return true;
@@ -473,23 +507,28 @@ public class CPHInline
 
     public bool GetViewersCount()
     {
-        if (!args.ContainsKey("channel_name"))
+        return GetViewersCountInternal(CPH);
+    }
+
+    private bool GetViewersCountInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
             return false;
 
-        string channelName = args["channel_name"].ToString();
+        string channelName = channelNameObj.ToString();
 
         try
         {
-            var authState = EnsureValidAuth(CPH);
+            var authState = EnsureValidAuth(cph);
             if (authState == null)
                 return false;
 
             int viewers = _vkVideoLiveApiService.GetChannelViewersCount(channelName, authState.AccessToken);
-            CPH.SetArgument("viewers_count", viewers);
+            cph.SetArgument("viewers_count", viewers);
         }
         catch (Exception e)
         {
-            CPH.LogWarn("[VKVideoLive get viewers count] Error fetching viewers count, " + e.Message);
+            cph.LogWarn("[VKVideoLive get viewers count] Error fetching viewers count, " + e.Message);
             return false;
         }
         return true;
@@ -573,17 +612,22 @@ public class CPHInline
 
     public bool GetNewViewers()
     {
-        if (!CPH.TryGetArg("users", out List<Dictionary<string, object>> users) || users == null || users.Count == 0)
+        return GetNewViewersInternal(CPH);
+    }
+
+    private bool GetNewViewersInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("users", out object usersObj) || usersObj is not List<Dictionary<string, object>> users || users.Count == 0)
         {
-            CPH.LogInfo("Список зрителей пуст или аргумент users не передан. Вызовите Get Viewers или привяжите экшен к триггеру Present Viewers (VK Video Live).");
+            cph.LogInfo("Список зрителей пуст или аргумент users не передан. Вызовите Get Viewers или привяжите экшен к триггеру Present Viewers (VK Video Live).");
             return true;
         }
 
-        List<string> todayViewers = CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
+        var todayViewers = cph.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true) ?? new List<string>();
 
         try
         {
-            CPH.LogInfo("Попытка получить нового зрителя на вкпл");
+            cph.LogInfo("Попытка получить нового зрителя на вкпл");
             for (int i = 0; i < users.Count; i++)
             {
                 string displayName = users[i].ContainsKey("userName") ? users[i]["userName"]?.ToString() : null;
@@ -593,18 +637,18 @@ public class CPHInline
                     continue;
 
                 todayViewers.Add(displayName);
-                CPH.SetGlobalVar(VkLiveTodaysViewersKey, todayViewers, true);
-                CPH.SetArgument("service", "VKVideoLive");
-                CPH.SetArgument("title", "Новый зритель");
-                CPH.SetArgument("message", displayName);
-                CPH.ExecuteMethod("MiniChat Method Collection", "CreateCustomEvent");
-                CPH.LogInfo("Новый зритель: " + displayName);
+                cph.SetGlobalVar(VkLiveTodaysViewersKey, todayViewers, true);
+                cph.SetArgument("service", "VKVideoLive");
+                cph.SetArgument("title", "Новый зритель");
+                cph.SetArgument("message", displayName);
+                cph.ExecuteMethod("MiniChat Method Collection", "CreateCustomEvent");
+                cph.LogInfo("Новый зритель: " + displayName);
                 Thread.Sleep(200); // Без задержки лента миничата пропускает часть событий.
             }
         }
         catch (Exception e)
         {
-            CPH.LogWarn("Error fetching new viewer, " + e.Message);
+            cph.LogWarn("Error fetching new viewer, " + e.Message);
         }
 
         return true;
@@ -612,9 +656,26 @@ public class CPHInline
 
     public bool AddFirstWordViewer()
     {
-        List<string> todayViewers = CPH.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true);
-        todayViewers.Add(args["userName"].ToString());
-        CPH.SetGlobalVar(VkLiveTodaysViewersKey, todayViewers, true);
+        return AddFirstWordViewerInternal(CPH);
+    }
+
+    private bool AddFirstWordViewerInternal(IInlineInvokeProxy cph)
+    {
+        var todayViewers = cph.GetGlobalVar<List<string>>(VkLiveTodaysViewersKey, true) ?? new List<string>();
+
+        if (!cph.TryGetArg("userName", out object userNameObj) || userNameObj == null)
+            return true;
+
+        string userName = userNameObj.ToString();
+        if (string.IsNullOrWhiteSpace(userName))
+            return true;
+
+        if (!todayViewers.Contains(userName))
+        {
+            todayViewers.Add(userName);
+            cph.SetGlobalVar(VkLiveTodaysViewersKey, todayViewers, true);
+        }
+
         return true;
     }
 
