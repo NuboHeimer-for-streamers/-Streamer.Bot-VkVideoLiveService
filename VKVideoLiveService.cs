@@ -773,16 +773,12 @@ public class CPHInline
 public class VKVideoLiveApiService
 {
     internal HttpClient Client { get; set; }
-    // Public/browser-facing API host (used for existing viewer/reward endpoints)
-    internal const string ServiceBrowserApiHost = "https://api.live.vkvideo.ru/v1";
-    // Official API host (to be used for OAuth/API-specific calls)
+    // Official API host (to be used for OAuth/API-specific calls and current API calls)
     internal const string ServiceOfficialApiHost = "https://apidev.live.vkvideo.ru/v1";
     private const string EndpointChannelPoints = "/channel_point/rewards/manage_info";
     private const string EndpointRewardEnable = "/channel_point/reward/enable";
     private const string EndpointRewardDisable = "/channel_point/reward/disable";
     private const string EndpointRewardActivate = "/channel_point/reward/activate";
-    private const string EndpointAllStatistics = "/channel/{0}/analytics?aggregate_interval=day&date_interval=30day";
-    private const string EndpointSongRequest = "/channel/{0}/stream/slot/default/point/reward/{1}/activate";
 
     public VKVideoLiveApiService(HttpClient client)
     {
@@ -835,44 +831,6 @@ public class VKVideoLiveApiService
         catch (HttpRequestException e)
         {
             throw new InvalidOperationException("[VKVideoLive chat] Error fetching chat members: " + e.Message, e);
-        }
-    }
-
-    public void SendSongRequest(string channelName, string rewardId, string token, string videoUrl)
-    {
-        string url = string.Format(ServiceBrowserApiHost + EndpointSongRequest, channelName, rewardId);
-        string contentJson = "[\"" + videoUrl + "\",\"unstyled\",[]]";
-        var requestBody = new List<object>
-        {
-            new
-            {
-                type = "link",
-                content = contentJson,
-                url = videoUrl
-            },
-            new
-            {
-                type = "text",
-                content = "",
-                modificator = "BLOCK_END"
-            }
-        };
-        string jsonString = JsonConvert.SerializeObject(requestBody);
-        try
-        {
-            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            var formData = new List<KeyValuePair<string, string>>
-            {
-                new KeyValuePair<string, string>("text", jsonString)
-            };
-            using HttpContent httpContent = new FormUrlEncodedContent(formData);
-            using HttpResponseMessage response = Client.PutAsync(url, httpContent).GetAwaiter().GetResult();
-            response.EnsureSuccessStatusCode();
-            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-        }
-        catch (HttpRequestException e)
-        {
-            throw new InvalidOperationException("Error from client: " + e.Message, e);
         }
     }
 
@@ -1004,29 +962,6 @@ public class VKVideoLiveApiService
         {
             throw new InvalidOperationException("[VKVideoLive points] Error activating reward via API: " + e.Message, e);
         }
-    }
-
-    public class UserInfoResponse
-    {
-        [JsonProperty("owner")]
-        public UserData Owner { get; set; }
-
-        [JsonProperty("moderators")]
-        public List<UserData> Moderators { get; set; }
-
-        [JsonProperty("users")]
-        public List<UserData> Users { get; set; }
-
-        [JsonProperty("count")]
-        public UserInfoCounts Count { get; set; }
-    }
-
-    public class UserInfoCounts
-    {
-        public int permanentBans;
-        public int moderators;
-        public int temporaryBans;
-        public int users;
     }
 
     public class UserData
