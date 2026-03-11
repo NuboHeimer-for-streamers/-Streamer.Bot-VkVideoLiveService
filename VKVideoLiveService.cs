@@ -226,22 +226,61 @@ public class CPHInline
         if (!args.ContainsKey("channel_name"))
             return false;
 
+        if (!args.ContainsKey("rewardName"))
+        {
+            Logger.Error("[VKVideoLive song request] Аргумент rewardName не передан.");
+            return false;
+        }
+
+        if (!args.ContainsKey("minichat.Data.MessageKit.1.Data.URL"))
+        {
+            Logger.Error("[VKVideoLive song request] Аргумент URL не передан.");
+            return false;
+        }
+
         string channelName = args["channel_name"].ToString();
-        string rewardId = args["rewardId"].ToString();
-        string token = args["token"].ToString();
-        string url = args["minichat.Data.MessageKit.1.Data.URL"].ToString();
+        string rewardName = args["rewardName"].ToString();
+        string videoUrl = args["minichat.Data.MessageKit.1.Data.URL"].ToString();
+
+        if (string.IsNullOrWhiteSpace(channelName))
+        {
+            Logger.Error("[VKVideoLive song request] Значение channel_name пустое.");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(rewardName))
+        {
+            Logger.Error("[VKVideoLive song request] Значение rewardName пустое.");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(videoUrl))
+        {
+            Logger.Error("[VKVideoLive song request] Значение URL пустое.");
+            return false;
+        }
 
         try
         {
-            Service.SendSongRequest(channelName, rewardId, token, url);
-            CPH.LogInfo("[VKVideoLive song request] Song request sent");
+            var authState = EnsureValidDevApiAuth(CPH);
+            if (authState == null)
+                return false;
+
+            string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
+            if (string.IsNullOrEmpty(rewardId))
+            {
+                Logger.Error("[VKVideoLive song request] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                return false;
+            }
+
+            Service.ActivateRewardDev(channelName, rewardId, authState.AccessToken, videoUrl);
+            return true;
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive song request] Error sending song request", e.Message);
+            Logger.Error("[VKVideoLive song request] Ошибка при покупке награды по имени", e.Message);
+            return false;
         }
-
-        return true;
     }
 
     public bool GetRewardsForManage()
@@ -632,6 +671,7 @@ public class VKVideoLiveApiService
     private const string EndpointChannelPoints = "/channel_point/rewards/manage_info";
     private const string EndpointRewardEnableDev = "/channel_point/reward/enable";
     private const string EndpointRewardDisableDev = "/channel_point/reward/disable";
+    private const string EndpointRewardActivateDev = "/channel_point/reward/activate";
     private const string EndpointGetSeasonStatistics = "/channel/{0}/support_program/season/{1}/statistic/{2}/daily/";
     private const string EndpointAllStatistics = "/channel/{0}/analytics?aggregate_interval=day&date_interval=30day";
     private const string EndpointSongRequest = "/channel/{0}/stream/slot/default/point/reward/{1}/activate";
@@ -836,6 +876,47 @@ public class VKVideoLiveApiService
         catch (HttpRequestException e)
         {
             Logger.Error("[VKVideoLive points] Error disabling reward via DevAPI", e.Message);
+        }
+    }
+
+    public void ActivateRewardDev(string channelUrl, string rewardId, string token, string videoUrl)
+    {
+        string url = ServiceOfficialApiHost + EndpointRewardActivateDev;
+
+        var body = new
+        {
+            reward = new
+            {
+                id = rewardId,
+                message = new
+                {
+                    parts = new[]
+                    {
+                        new
+                        {
+                            link = new
+                            {
+                                content = videoUrl,
+                                url = videoUrl
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        string json = JsonConvert.SerializeObject(body);
+
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = Client.PostAsync(url, content).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+        }
+        catch (HttpRequestException e)
+        {
+            Logger.Error("[VKVideoLive points] Error activating reward via DevAPI", e.Message);
         }
     }
 
