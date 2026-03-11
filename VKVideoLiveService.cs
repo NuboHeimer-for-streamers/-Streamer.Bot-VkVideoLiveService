@@ -174,25 +174,51 @@ public class CPHInline
 
     public bool OffReward()
     {
-        if (!args.ContainsKey("channel_name"))
-            return false;
-
-        string channelName = args["channel_name"].ToString();
-        string rewardId = args["rewardId"].ToString();
-        string rewardState = "Off";
-        string token = args["token"].ToString();
-
         try
         {
-            Service.ChangeRewardState(channelName, rewardId, rewardState, token);
-            CPH.LogInfo("[VKVideoLive reward manager] Reward with id " + rewardId + " disabled");
+            if (!args.ContainsKey("channel_name"))
+                return false;
+
+            if (!args.ContainsKey("rewardName"))
+            {
+                Logger.Error("[VKVideoLive reward manager] Аргумент rewardName не передан.");
+                return false;
+            }
+
+            string channelName = args["channel_name"].ToString();
+            string rewardName = args["rewardName"].ToString();
+
+            if (string.IsNullOrWhiteSpace(channelName))
+            {
+                Logger.Error("[VKVideoLive reward manager] Значение channel_name пустое.");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(rewardName))
+            {
+                Logger.Error("[VKVideoLive reward manager] Значение rewardName пустое.");
+                return false;
+            }
+
+            var authState = EnsureValidDevApiAuth(CPH);
+            if (authState == null)
+                return false;
+
+            string rewardId = ResolveRewardIdByName(channelName, rewardName, authState.AccessToken);
+            if (string.IsNullOrEmpty(rewardId))
+            {
+                Logger.Error("[VKVideoLive reward manager] Награда с именем \"" + rewardName + "\" не найдена ни в кэше, ни после обновления manage_info.");
+                return false;
+            }
+
+            Service.DisableRewardDev(channelName, rewardId, authState.AccessToken);
+            return true;
         }
         catch (Exception e)
         {
-            Logger.Error("[VKVideoLive reward manager] Error disabling reward with id " + rewardId, e.Message);
+            Logger.Error("[VKVideoLive reward manager] Ошибка при выключении награды по имени", e.Message);
+            return false;
         }
-
-        return true;
     }
 
     public bool SongRequest()
@@ -605,6 +631,7 @@ public class VKVideoLiveApiService
     private const string EndpointSetRewardState = "/channel/{0}/manage/point/reward/{1}/enabled";
     private const string EndpointChannelPoints = "/channel_point/rewards/manage_info";
     private const string EndpointRewardEnableDev = "/channel_point/reward/enable";
+    private const string EndpointRewardDisableDev = "/channel_point/reward/disable";
     private const string EndpointGetSeasonStatistics = "/channel/{0}/support_program/season/{1}/statistic/{2}/daily/";
     private const string EndpointAllStatistics = "/channel/{0}/analytics?aggregate_interval=day&date_interval=30day";
     private const string EndpointSongRequest = "/channel/{0}/stream/slot/default/point/reward/{1}/activate";
@@ -790,6 +817,25 @@ public class VKVideoLiveApiService
         catch (HttpRequestException e)
         {
             Logger.Error("[VKVideoLive points] Error enabling reward via DevAPI", e.Message);
+        }
+    }
+
+    public void DisableRewardDev(string channelUrl, string rewardId, string token)
+    {
+        string url = ServiceOfficialApiHost
+                     + EndpointRewardDisableDev
+                     + "?channel_url=" + Uri.EscapeDataString(channelUrl)
+                     + "&reward_id=" + Uri.EscapeDataString(rewardId);
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var content = new StringContent("{}", Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = Client.PostAsync(url, content).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+        }
+        catch (HttpRequestException e)
+        {
+            Logger.Error("[VKVideoLive points] Error disabling reward via DevAPI", e.Message);
         }
     }
 
