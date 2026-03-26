@@ -13,7 +13,7 @@
 ///   Help:         https://t.me/nuboheimersb/29
 ///----------------------------------------------------------------------------
 
-///   Version:      3.2.0
+///   Version:      4.0.0
 using System;
 using System.Net;
 using System.Net.Http;
