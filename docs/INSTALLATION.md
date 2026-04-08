@@ -29,18 +29,12 @@
   <img src="./images/installation/Warning.png" alt="Предупреждение об импорте кастомного кода">
 </p>
 
-6. Установка завершена.
+6. Установка завершена. Ознакомьтесь с [инструцией по использованию](USAGE.md)
 
-## Обновление с версии 1.0.3.
-1. Запустите экшен **\[Twitch] Remove twitch_todays_viewers**
-
-<p align="center">
-  <img src="./images/installation/Remove_twitch_todays_viewers.png" alt="Экшен Remove twitch_todays_viewers">
-</p>
-2. Запустите экшен **\[Twitch] Remove twitchLastViewersNameList**
-
-<p align="center">
-  <img src="./images/installation/Remove_twitchLastViewersNameList.png" alt="Экшен Remove twitchLastViewersNameList">
-</p>
-
-Это нужно для удаления старых глобальных переменных, которые больше не используются.
+## Обновление с версии 3.2.0.
+1. Проделать все шаги выше.
+2. Открыть Global Variables и удалить:
+  - `vkvideolive_todays_viewers`
+  - `last_random_viewer`
+3. Открыть Queues и переименовать `NewViewers` на `[VkLive] Viwers`.
+4. Открыть **Services -> Timers** и удалить GetNewViewers
