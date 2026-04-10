@@ -513,10 +513,10 @@ public class CPHInline
 
     public bool GetInOutViewers()
     {
-        return GetInOutViewers(CPH);
+        return GetInOutViewersInternal(CPH);
     }
 
-    private bool GetInOutViewers(IInlineInvokeProxy cph)
+    private bool GetInOutViewersInternal(IInlineInvokeProxy cph)
     {
         try
         {
