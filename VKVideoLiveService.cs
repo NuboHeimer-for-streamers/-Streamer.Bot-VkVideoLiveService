@@ -1,16 +1,9 @@
 ///----------------------------------------------------------------------------
 ///   Module:       VK Video Live Service
-///   Author:       play_code (https://twitch.tv/play_code)
-///   Refactored:   NuboHeimer (https://live.vkvideo.ru/nuboheimer)
-///   Email:        info@play-code.live
-///   WebSite:		https://docs.play-code.ru/minichat
-///----------------------------------------------------------------------------
-
-///----------------------------------------------------------------------------
-///   Module:       GetNewViewers, RewardsManager, GetSeasonStatistics
 ///   Author:       NuboHeimer (https://live.vkvideo.ru/nuboheimer)
 ///   Email:        nuboheimer@yandex.ru
 ///   Help:         https://t.me/nuboheimersb/29
+///   Help:         https://vk.com/topic-236253647_57236856
 ///----------------------------------------------------------------------------
 
 ///   Version:      4.0.0
