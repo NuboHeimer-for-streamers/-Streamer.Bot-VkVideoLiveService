@@ -781,31 +781,6 @@ public class VKVideoLiveApiService
         }
     }
 
-    public List<UserData> GetChatMembers(string channelUrl, string token, int limit)
-    {
-        if (limit <= 0 || limit > 200)
-            limit = 200;
-
-        string url = ServiceOfficialApiHost
-                     + "/chat/members?channel_url=" + Uri.EscapeDataString(channelUrl)
-                     + "&limit=" + limit.ToString();
-        try
-        {
-            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
-            response.EnsureSuccessStatusCode();
-
-            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-
-            var root = JsonConvert.DeserializeObject<ChatMembersRootResponse>(responseBody);
-            return root?.Data?.Members ?? new List<UserData>();
-        }
-        catch (HttpRequestException e)
-        {
-            throw new InvalidOperationException("[VKVideoLive chat] Error fetching chat members: " + e.Message, e);
-        }
-    }
-
     public ChannelPointResponse GetChannelPoints(string channelUrl, string token)
     {
         string url = ServiceOfficialApiHost + EndpointChannelPoints + "?channel_url=" + Uri.EscapeDataString(channelUrl);
@@ -936,37 +911,6 @@ public class VKVideoLiveApiService
         }
     }
 
-    public class UserData
-    {
-        [JsonProperty("displayName")]
-        public string DisplayName { get; set; }
-
-        [JsonProperty("id")]
-        public int ID { get; set; }
-
-        [JsonProperty("avatarUrl")]
-        public string AvatarUrl { get; set; }
-
-        public Dictionary<string, string> ToDictionary()
-        {
-            return new Dictionary<string, string>
-            {
-                {
-                    "displayName",
-                    DisplayName
-                },
-                {
-                    "id",
-                    ID.ToString()
-                },
-                {
-                    "avatarUrl",
-                    AvatarUrl
-                },
-            };
-        }
-    }
-
     public class ChannelInfoRootResponse
     {
         [JsonProperty("data")]
@@ -1001,18 +945,6 @@ public class VKVideoLiveApiService
     {
         [JsonProperty("counters")]
         public ChannelInfoCounters Counters { get; set; }
-    }
-
-    public class ChatMembersRootResponse
-    {
-        [JsonProperty("data")]
-        public ChatMembersData Data { get; set; }
-    }
-
-    public class ChatMembersData
-    {
-        [JsonProperty("members")]
-        public List<UserData> Members { get; set; } = new List<UserData>();
     }
 
     public class ChannelPointRootResponse
