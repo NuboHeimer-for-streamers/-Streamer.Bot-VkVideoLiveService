@@ -453,7 +453,7 @@ public class CPHInline
 
             if (viewers.Count == 0)
             {
-                cph.SetArgument("viewer", "");
+                cph.SetArgument("randomUserName0", "");
                 return true;
             }
 
@@ -470,7 +470,7 @@ public class CPHInline
 
             var viewer = candidates[rnd.Next(candidates.Count)];
 
-            cph.SetArgument("viewer", viewer);
+            cph.SetArgument("randomUserName0", viewer);
             cph.SetGlobalVar(VkLiveLastRandomViewerKey, viewer, true);
         }
         catch (Exception e)
