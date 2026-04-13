@@ -17,7 +17,8 @@
 <p align="center">
   <img src="./images/installation/import_btn.png" alt="Кнопка Import в верхнем меню Streamer.bot">
 </p>
-4. Перетащите скачанный ранее `VkLiveService.txt` в область `Import String`. Если перетащить не получается, откройте файл блокнотом, скопируйте текст и вставьте его в `Import String`.  
+4. Перетащите скачанный ранее `VkLiveService.txt` в область `Import String`. Если перетащить не получается, откройте файл блокнотом, скопируйте текст и вставьте его в `Import String`.
+
 5. Нажмите кнопку Import справа внизу.
 
 <p align="center">
