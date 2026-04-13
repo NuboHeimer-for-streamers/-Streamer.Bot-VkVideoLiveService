@@ -1,7 +1,7 @@
 VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo.ru/) для [Streamer.bot](https://streamer.bot/).
 
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-[![Version](https://img.shields.io/badge/Version-4.0.0-blue.svg)](https://github.com/NuboHeimer-for-streamers/-Streamer.bot-VkLiveService)
+[![Version](https://img.shields.io/badge/Version-4.0.0-blue.svg)](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService)
 
 Модуль позволяет получать список активных зрителей, работать с наградами VK Video Live и использовать эти данные в сценариях Streamer.bot.
 
@@ -9,6 +9,7 @@ VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo
 
 - [Установка и обновление](docs/INSTALLATION.md)
 - [Использование](docs/USAGE.md)
+- [История изменений](CHANGELOG.md)
 
 ## 📋 Содержание
 
