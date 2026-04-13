@@ -269,61 +269,6 @@ public class CPHInline
         }
     }
 
-    public bool GetRewardsForManage()
-    {
-        return GetRewardsForManageInternal(CPH);
-    }
-
-    private bool GetRewardsForManageInternal(IInlineInvokeProxy cph)
-    {
-        try
-        {
-            if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
-            {
-                cph.LogWarn("[VKVideoLive points] Аргумент channel_name не передан.");
-                return false;
-            }
-
-            string channelName = channelNameObj.ToString();
-            if (string.IsNullOrWhiteSpace(channelName))
-            {
-                cph.LogWarn("[VKVideoLive points] Значение channel_name пустое.");
-                return false;
-            }
-
-            var authState = EnsureValidAuth(cph);
-            if (authState == null)
-                return false;
-
-            var channelPoints = _vkVideoLiveApiService.GetChannelPoints(channelName, authState.AccessToken);
-            if (channelPoints == null || channelPoints.Rewards == null || channelPoints.Rewards.Count == 0)
-            {
-                cph.LogDebug("[VKVideoLive points] Награды для управления не найдены.");
-                return true;
-            }
-
-            var rewardsCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var reward in channelPoints.Rewards)
-            {
-                if (!string.IsNullOrWhiteSpace(reward.Name) && !string.IsNullOrWhiteSpace(reward.Id))
-                {
-                    string key = channelName + "::" + reward.Name;
-                    rewardsCache[key] = reward.Id;
-                }
-            }
-
-            cph.SetGlobalVar(VkLiveRewardsCacheKey, rewardsCache, true);
-
-            return true;
-        }
-        catch (Exception e)
-        {
-            cph.LogWarn("[VKVideoLive points] Ошибка при получении списка наград для управления, " + e.Message);
-            return false;
-        }
-    }
-
     public bool GetViewers()
     {
         return GetViewersInternal(CPH);
@@ -656,6 +601,7 @@ public class CPHInline
         return VkAuthShowUiInternal(CPH);
     }
 
+    // Публичный метод — точка входа Streamer.bot (отдельный экшен / вызов без UI). Обновление токена также выполняется в EnsureValidAuth при обращении к API.
     public bool VkAuthRefresh()
     {
         return VkAuthRefreshInternal(CPH);
