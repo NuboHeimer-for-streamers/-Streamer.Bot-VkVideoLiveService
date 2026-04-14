@@ -1,29 +1,31 @@
 # VkLiveService - Руководство по установке и обновлению.
 
 ## Зависимости (обязательно для событий в MiniChat)
-Если вы используете события, которые должны **отображаться в MiniChat**, у вас должна быть установлена/подключена интеграция **MiniChat** для Streamer.bot.
+Если вы используете события, которые должны **отображаться в MiniChat**, у вас должна быть установлена и подключена интеграция **MiniChat** для Streamer.bot.
 
 В коде сервиса события отправляются через вызов метода:
 - коллекция методов: `MiniChat Method Collection`
 - метод: `CreateCustomEvent`
 
-Если этой коллекции/метода нет (интеграция MiniChat не установлена или не импортирована), то экшены сервиса будут выполняться, но **события в MiniChat отображаться не будут**.
+Если интеграция MiniChat не установлена или не подключена, то экшены сервиса будут выполняться, но **события в MiniChat отображаться не будут**.
 
 ## Установка.
 1. Скачайте файл `VkLiveService.txt` из последнего [релиза](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/releases).
 2. Запустите стримербот.
-3. В верхнем меню нажмите кнопку `Import`.
+3. В верхнем меню нажмите кнопку **Import**.
 
 <p align="center">
   <img src="./images/installation/import_btn.png" alt="Кнопка Import в верхнем меню Streamer.bot">
 </p>
+
 4. Перетащите скачанный ранее `VkLiveService.txt` в область `Import String`. Если перетащить не получается, откройте файл блокнотом, скопируйте текст и вставьте его в `Import String`.
 
-5. Нажмите кнопку Import справа внизу.
+5. Нажмите кнопку **Import** справа внизу.
 
 <p align="center">
   <img src="./images/installation/import_btn2.png" alt="Кнопка Import внизу справа в диалоге импорта">
 </p>
+
 5.1. Начиная с версии 1.0.0 Streamer.bot предупреждает, что вы импортируете кастомный C# код. Соглашаемся.
 
 <p align="center">
@@ -34,8 +36,8 @@
 
 ## Обновление с версии 3.2.0.
 1. Проделать все шаги выше.
-2. Открыть Global Variables и удалить:
+2. Открыть **Global Variables** и удалить:
   - `vkvideolive_todays_viewers`
   - `last_random_viewer`
-3. Открыть Queues и переименовать `NewViewers` на `[VkLive] Viewers`.
-4. Открыть **Services -> Timers** и удалить GetNewViewers
+3. Открыть **Queues** и переименовать `NewViewers` на `[VkLive] Viewers`.
+4. Открыть **Services** -> **Timers** и удалить `GetNewViewers`.
