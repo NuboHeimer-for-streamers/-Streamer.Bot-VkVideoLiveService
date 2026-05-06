@@ -5,4 +5,4 @@ sidebar:
   open: true
 ---
 
-{{< include-markdown path="README.md" >}}
+{{< include-markdown path="../README.md" >}}
