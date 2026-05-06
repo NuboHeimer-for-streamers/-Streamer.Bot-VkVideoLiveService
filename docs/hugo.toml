@@ -1,5 +1,5 @@
 baseURL = '/'
-languageCode = 'ru-ru'
+locale = 'ru-ru'
 title = 'VkLiveService'
 
 theme = "hextra"
@@ -21,6 +21,10 @@ disablePathToLower = true
     endLevel = 9
 
 [params]
-  # Базовые настройки Hextra
-  theme = "system"
-  toc = true
+  [params.theme]
+    # light | dark | system
+    default = "system"
+    displayToggle = true
+
+  [params.toc]
+    enable = true
