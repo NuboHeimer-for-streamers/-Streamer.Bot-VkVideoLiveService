@@ -1,5 +1,8 @@
 ---
 title: "VkLiveService"
+type: "docs"
+sidebar:
+  open: true
 ---
 
 VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo.ru/) для [Streamer.bot](https://streamer.bot/).
