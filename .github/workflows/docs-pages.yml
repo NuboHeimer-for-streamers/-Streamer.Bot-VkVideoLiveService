@@ -39,6 +39,11 @@ jobs:
           if [ "$branch" = "testDocs" ]; then echo "path=test-docs" >> "$GITHUB_OUTPUT"; exit 0; fi
           echo "path=${branch}" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare README for docs build
+        shell: bash
+        run: |
+          cp README.md docs/README.project.md
+
       - name: Build (from /docs)
         shell: bash
         run: |

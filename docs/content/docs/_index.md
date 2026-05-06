@@ -2,4 +2,4 @@
 title: "VkLiveService"
 ---
 
-{{< include-markdown path="../README.md" >}}
+{{< include-markdown path="README.project.md" >}}
