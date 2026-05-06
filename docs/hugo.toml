@@ -2,11 +2,25 @@ baseURL = '/'
 languageCode = 'ru-ru'
 title = 'VkLiveService'
 
-theme = "hugo-book"
+theme = "hugo-geekdoc"
 
 # Важно для публикации в подпапку (например /test-docs/ на docs.nuboheimer.ru):
 # заставляет Hugo учитывать путь из baseURL при генерации ссылок на ассеты.
 canonifyURLs = true
 
+# Рекомендуемые настройки Geekdoc
+pygmentsUseClasses = true
+pygmentsCodeFences = true
+disablePathToLower = true
+
+[markup]
+  [markup.goldmark.renderer]
+    unsafe = true
+  [markup.tableOfContents]
+    startLevel = 1
+    endLevel = 9
+
 [params]
-  BookSection = 'docs'
+  geekdocToC = 3
+  geekdocBreadcrumb = true
+  geekdocNextPrev = true

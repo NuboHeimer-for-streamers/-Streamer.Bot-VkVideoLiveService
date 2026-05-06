@@ -31,6 +31,13 @@ jobs:
           hugo-version: "latest"
           extended: true
 
+      - name: Build Geekdoc theme assets
+        shell: bash
+        working-directory: docs/themes/hugo-geekdoc
+        run: |
+          npm ci
+          npm run build
+
       - name: Compute site path
         id: site
         shell: bash
