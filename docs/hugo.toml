@@ -2,13 +2,13 @@ baseURL = '/'
 languageCode = 'ru-ru'
 title = 'VkLiveService'
 
-theme = "hugo-geekdoc"
+theme = "hextra"
 
 # Важно для публикации в подпапку (например /test-docs/ на docs.nuboheimer.ru):
 # заставляет Hugo учитывать путь из baseURL при генерации ссылок на ассеты.
 canonifyURLs = true
 
-# Рекомендуемые настройки Geekdoc
+# Рекомендуемые базовые настройки для тем документации
 pygmentsUseClasses = true
 pygmentsCodeFences = true
 disablePathToLower = true
@@ -21,6 +21,6 @@ disablePathToLower = true
     endLevel = 9
 
 [params]
-  geekdocToC = 3
-  geekdocBreadcrumb = true
-  geekdocNextPrev = true
+  # Базовые настройки Hextra
+  theme = "system"
+  toc = true
