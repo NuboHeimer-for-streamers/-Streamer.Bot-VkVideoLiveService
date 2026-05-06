@@ -1,2 +1,7 @@
 /Examples
 .cursor/
+
+# Hugo (docs site)
+/docs/public/
+/docs/resources/
+/docs/.hugo_build.lock
