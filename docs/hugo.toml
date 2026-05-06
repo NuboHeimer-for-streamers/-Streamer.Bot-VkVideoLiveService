@@ -3,3 +3,10 @@ languageCode = 'ru-ru'
 title = 'VkLiveService'
 
 theme = "hugo-book"
+
+# Важно для публикации в подпапку (например /test-docs/ на docs.nuboheimer.ru):
+# заставляет Hugo учитывать путь из baseURL при генерации ссылок на ассеты.
+canonifyURLs = true
+
+[params]
+  BookSection = 'docs'
