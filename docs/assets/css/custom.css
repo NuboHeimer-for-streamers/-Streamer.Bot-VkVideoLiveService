@@ -1,7 +1,3 @@
-:root {
-  /* Keep README badges aligned like on GitHub */
-}
-
 /* GitHub-style badges: multiple <a><img></a> on separate lines */
 .content p:has(> a > img) {
   display: flex;
