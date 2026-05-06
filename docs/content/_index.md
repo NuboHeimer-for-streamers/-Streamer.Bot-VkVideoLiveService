@@ -2,8 +2,6 @@
 title: "VkLiveService"
 ---
 
-# VkLiveService
-
 VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo.ru/) для [Streamer.bot](https://streamer.bot/).
 
 Модуль позволяет получать список активных зрителей, работать с наградами VK Video Live и использовать эти данные в сценариях Streamer.bot.
