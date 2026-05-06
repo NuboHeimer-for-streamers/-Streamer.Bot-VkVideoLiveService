@@ -3,8 +3,3 @@ languageCode = 'ru-ru'
 title = 'VkLiveService'
 
 theme = "hugo-book"
-
-# Публикация идёт в подпапку (test-docs/dev-docs/...), поэтому делаем ссылки относительными,
-# чтобы они корректно работали на любом baseURL.
-relativeURLs = true
-canonifyURLs = true
