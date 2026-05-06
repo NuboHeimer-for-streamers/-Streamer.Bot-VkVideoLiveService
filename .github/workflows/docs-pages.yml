@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           SITE_PATH="${{ steps.site.outputs.path }}"
-          BASE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${SITE_PATH}/"
+          BASE_URL="https://docs.nuboheimer.ru/${SITE_PATH}/"
           hugo --source docs --minify --baseURL "$BASE_URL" --destination "../_site/${SITE_PATH}"
 
       - name: Deploy to gh-pages (subdir)
@@ -53,3 +53,4 @@ jobs:
           publish_branch: gh-pages
           publish_dir: ./_site/${{ steps.site.outputs.path }}
           destination_dir: ${{ steps.site.outputs.path }}
+          cname: docs.nuboheimer.ru
