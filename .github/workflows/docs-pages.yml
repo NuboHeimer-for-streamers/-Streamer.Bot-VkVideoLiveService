@@ -42,7 +42,15 @@ jobs:
       - name: Prepare README for docs build
         shell: bash
         run: |
-          cp README.md docs/README.project.md
+          python - <<'PY'
+          from pathlib import Path
+          
+          text = Path("README.md").read_text(encoding="utf-8")
+          # GitHub-friendly links -> site routes (Hugo pages)
+          text = text.replace("(docs/INSTALLATION.md)", "(/docs/installation/)")
+          text = text.replace("(docs/USAGE.md)", "(/docs/usage/)")
+          Path("docs/README.project.md").write_text(text, encoding="utf-8")
+          PY
 
       - name: Build (from /docs)
         shell: bash
