@@ -28,3 +28,5 @@ disablePathToLower = true
 
   [params.toc]
     enable = true
+
+  navbar_logo = "/images/logo.png"

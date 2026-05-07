@@ -1,6 +1,7 @@
 ---
 title: "Установке и обновлению."
 weight: 1
+type: "docs"
 slug: "installation"
 url: "/installation/"
 ---
