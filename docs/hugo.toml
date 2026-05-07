@@ -29,4 +29,8 @@ disablePathToLower = true
   [params.toc]
     enable = true
 
-  navbar_logo = "/images/logo.png"
+  [params.navbar]
+    [params.navbar.logo]
+      path = "images/logo.png"
+      # width = "20"
+      # height = "20"
