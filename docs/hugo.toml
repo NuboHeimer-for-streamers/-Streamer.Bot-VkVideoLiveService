@@ -4,11 +4,8 @@ title = 'VkLiveService'
 
 theme = "hextra"
 
-# Важно для публикации в подпапку (например /test-docs/ на docs.nuboheimer.ru):
-# заставляет Hugo учитывать путь из baseURL при генерации ссылок на ассеты.
 canonifyURLs = true
 
-# Рекомендуемые базовые настройки для тем документации
 pygmentsUseClasses = true
 pygmentsCodeFences = true
 disablePathToLower = true
@@ -21,10 +18,10 @@ disablePathToLower = true
     endLevel = 9
 
 [params]
-  search:
-    enable: true
+  [params.search]
+    enable = true
+
   [params.theme]
-    # light | dark | system
     default = "system"
     displayToggle = true
 
@@ -34,5 +31,3 @@ disablePathToLower = true
   [params.navbar]
     [params.navbar.logo]
       path = "images/logo.png"
-      # width = "20"
-      # height = "20"
