@@ -1,5 +1,5 @@
 ---
-title: "Установке и обновлению."
+title: "Установка и обновление."
 weight: 1
 type: "docs"
 slug: "installation"
