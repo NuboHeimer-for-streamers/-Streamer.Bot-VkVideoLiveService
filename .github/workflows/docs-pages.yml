@@ -1,0 +1,82 @@
+name: Docs (Hugo)
+
+on:
+  push:
+    branches: [ dev ]
+  workflow_dispatch:
+
+env:
+  PROJECT_SLUG: vkliveservice
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: "latest"
+          extended: true
+
+      - name: Prepare README for docs build
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          
+          text = Path("README.md").read_text(encoding="utf-8")
+          text = text.replace("(docs/content/INSTALLATION.md)", "(installation/)")
+          text = text.replace("(docs/content/USAGE.md)", "(usage/)")
+
+          repo = os.environ.get("GITHUB_REPOSITORY")
+          ref = os.environ.get("GITHUB_REF_NAME")
+          if repo and ref:
+            changelog_url = f"https://github.com/{repo}/blob/{ref}/CHANGELOG.md"
+            text = text.replace("(CHANGELOG.md)", f"({changelog_url})")
+
+          Path("docs/README.project.md").write_text(text, encoding="utf-8")
+          PY
+
+      - name: Build
+        shell: bash
+        run: |
+          slug="${PROJECT_SLUG}"
+          hugo --source docs \
+            --baseURL "https://nuboheimer.ru/dev-docs/${slug}/" \
+            --destination "../_site"
+
+      - name: Clean VPS target
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            rm -rf /var/www/nubosite/dev-docs-data/${{ env.PROJECT_SLUG }}/*
+
+      - name: Deploy to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "./_site/*"
+          target: "/var/www/nubosite/dev-docs-data/${{ env.PROJECT_SLUG }}/"
+          strip_components: 1

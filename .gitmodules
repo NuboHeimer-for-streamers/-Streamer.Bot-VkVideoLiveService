@@ -1,0 +1,9 @@
+[submodule "docs/themes/hugo-book"]
+	path = docs/themes/hugo-book
+	url = https://github.com/alex-shpak/hugo-book
+[submodule "docs/themes/hugo-geekdoc"]
+	path = docs/themes/hugo-geekdoc
+	url = https://github.com/thegeeklab/hugo-geekdoc.git
+[submodule "docs/themes/hextra"]
+	path = docs/themes/hextra
+	url = https://github.com/imfing/hextra.git

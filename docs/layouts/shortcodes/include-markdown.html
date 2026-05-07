@@ -1,0 +1,14 @@
+{{- /*
+  Usage:
+    {{< include-markdown path="README.md" >}}
+
+  Reads a markdown file from the repository and renders it as page content.
+*/ -}}
+{{- $path := .Get "path" -}}
+{{- if not $path -}}
+  {{- errorf "include-markdown: parameter 'path' is required" -}}
+{{- end -}}
+
+{{- $content := readFile $path -}}
+{{- $content | markdownify -}}
+
