@@ -32,14 +32,6 @@ jobs:
           hugo-version: "latest"
           extended: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Setup Pagefind
-        run: npm install -g pagefind
-
       - name: Prepare README for docs build
         shell: bash
         run: |
@@ -64,12 +56,9 @@ jobs:
         shell: bash
         run: |
           slug="${PROJECT_SLUG}"
-          hugo --source docs --minify \
+          hugo --source docs \
             --baseURL "https://nuboheimer.ru/dev-docs/${slug}/" \
             --destination "../_site"
-
-      - name: Index with Pagefind
-        run: pagefind --site _site
 
       - name: Clean VPS target
         uses: appleboy/ssh-action@v0.1.10

@@ -31,3 +31,10 @@ disablePathToLower = true
   [params.navbar]
     [params.navbar.logo]
       path = "images/logo.png"
+
+[menu]
+  [[menu.main]]
+    name = "Search"
+    weight = 1
+    [menu.main.params]
+      type = "search"
