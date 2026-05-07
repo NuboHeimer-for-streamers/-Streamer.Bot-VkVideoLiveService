@@ -1,6 +1,7 @@
 ---
 title: "VkLiveService - Руководство по установке и обновлению."
 weight: 1
+slug: "installation"
 ---
 
 ## Зависимости (обязательно для событий в MiniChat)

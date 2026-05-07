@@ -2,6 +2,7 @@
 title: "Usage"
 weight: 2
 description: "Руководство по настройке VkLiveService: создание приложения VK, авторизация в Streamer.bot и использование экшенов."
+slug: "usage"
 ---
 
 ## Disclaimer
