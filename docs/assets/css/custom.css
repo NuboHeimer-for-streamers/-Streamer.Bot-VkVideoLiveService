@@ -1,0 +1,18 @@
+/* GitHub-style badges: multiple <a><img></a> on separate lines */
+.content p:has(> a > img) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.content p:has(> a > img) > a {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.content p:has(> a > img) > a > img {
+  display: block;
+}
+
