@@ -58,4 +58,4 @@ disablePathToLower = true
     url = "https://vk.com/nuboguides"
     weight = 4
     [menu.main.params]
-      icon = "link"
+      icon = "vk"
