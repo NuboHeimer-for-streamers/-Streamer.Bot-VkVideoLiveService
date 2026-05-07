@@ -2,7 +2,7 @@ name: Docs (Hugo)
 
 on:
   push:
-    branches: [ dev ]
+    branches: [ main ]
   workflow_dispatch:
 
 env:
@@ -57,7 +57,7 @@ jobs:
         run: |
           slug="${PROJECT_SLUG}"
           hugo --source docs \
-            --baseURL "https://nuboheimer.ru/dev-docs/${slug}/" \
+            --baseURL "https://nuboheimer.ru/docs/${slug}/" \
             --destination "../_site"
 
       - name: Clean VPS target
@@ -68,7 +68,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
-            rm -rf /var/www/nubosite/dev-docs-data/${{ env.PROJECT_SLUG }}/*
+            rm -rf /var/www/nubosite/docs-data/${{ env.PROJECT_SLUG }}/*
 
       - name: Deploy to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -78,5 +78,5 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           source: "./_site/*"
-          target: "/var/www/nubosite/dev-docs-data/${{ env.PROJECT_SLUG }}/"
+          target: "/var/www/nubosite/docs-data/${{ env.PROJECT_SLUG }}/"
           strip_components: 1
