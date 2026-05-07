@@ -52,14 +52,7 @@ jobs:
           Path("docs/README.project.md").write_text(text, encoding="utf-8")
           PY
 
-      - name: Build for GitHub Pages
-        shell: bash
-        run: |
-          hugo --source docs --minify \
-            --baseURL "https://docs.nuboheimer.ru/test-docs/" \
-            --destination "../_site-pages"
-
-      - name: Build for VPS
+      - name: Build
         shell: bash
         run: |
           slug="${PROJECT_SLUG}"
@@ -67,14 +60,15 @@ jobs:
             --baseURL "https://nuboheimer.ru/dev-docs/${slug}/" \
             --destination "../_site"
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Clean VPS target
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: ./_site-pages
-          destination_dir: test-docs
-          cname: docs.nuboheimer.ru
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            rm -rf /var/www/nubosite/dev-docs-data/${{ env.PROJECT_SLUG }}/*
 
       - name: Deploy to VPS
         uses: appleboy/scp-action@v0.1.7
