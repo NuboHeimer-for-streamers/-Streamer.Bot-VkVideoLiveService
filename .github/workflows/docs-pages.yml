@@ -50,8 +50,8 @@ jobs:
           # GitHub-friendly links -> site routes (Hugo pages)
           # Важно: ссылки делаем относительными, чтобы они работали в подпапке ветки:
           # https://docs.nuboheimer.ru/<branch>/
-          text = text.replace("(docs/INSTALLATION.md)", "(installation/)")
-          text = text.replace("(docs/USAGE.md)", "(usage/)")
+          text = text.replace("(docs/content/docs/INSTALLATION.md)", "(installation/)")
+          text = text.replace("(docs/content/docs/USAGE.md)", "(usage/)")
 
           # CHANGELOG оставляем на GitHub (в текущей ветке)
           repo = os.environ.get("GITHUB_REPOSITORY")
