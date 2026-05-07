@@ -69,36 +69,13 @@ jobs:
           destination_dir: ${{ env.PROJECT_SLUG }}
           cname: docs.nuboheimer.ru
 
-      - name: Debug secrets
-        run: |
-          if [ -n "${{ secrets.VPS_SSH_KEY }}" ]; then
-            echo "VPS_SSH_KEY: FOUND"
-          else
-            echo "VPS_SSH_KEY: MISSING"
-          fi
-          if [ -n "${{ secrets.VPS_HOST }}" ]; then
-            echo "VPS_HOST: ${{ secrets.VPS_HOST }}"
-          else
-            echo "VPS_HOST: MISSING"
-          fi
-          if [ -n "${{ secrets.VPS_USER }}" ]; then
-            echo "VPS_USER: ${{ secrets.VPS_USER }}"
-          else
-            echo "VPS_USER: MISSING"
-          fi
-          if [ -n "${{ secrets.VPS_PORT }}" ]; then
-            echo "VPS_PORT: ${{ secrets.VPS_PORT }}"
-          else
-            echo "VPS_PORT: MISSING"
-          fi
-
       - name: Deploy to VPS
-        uses: easingthemes/ssh-deploy@v4
+        uses: appleboy/scp-action@v0.1.7
         with:
-          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
-          ARGS: "-rlgoDzvc --delete"
-          SOURCE: "./_site/"
-          REMOTE_HOST: ${{ secrets.VPS_HOST }}
-          REMOTE_USER: ${{ secrets.VPS_USER }}
-          REMOTE_PORT: ${{ secrets.VPS_PORT }}
-          TARGET: "/var/www/nubosite/dev-docs-data/${{ env.PROJECT_SLUG }}/"
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "./_site/*"
+          target: "/var/www/nubosite/dev-docs-data/${{ env.PROJECT_SLUG }}/"
+          strip_components: 1
