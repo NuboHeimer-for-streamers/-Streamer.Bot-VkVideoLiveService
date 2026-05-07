@@ -8,11 +8,15 @@
 {{- $pages = where $pages "Params.excludeSearch" "!=" true -}}
 {{- $pages = where $pages "Content" "!=" "" -}}
 
+{{- $basePath := (urls.Parse site.BaseURL).Path | strings.TrimSuffix "/" -}}
 {{- $output := dict -}}
 
 {{- range $index, $page := $pages -}}
   {{- $pageTitle := $page.LinkTitle | default $page.File.BaseFileName -}}
-  {{- $pageLink := relLangURL (strings.TrimPrefix "/" $page.RelPermalink) -}}
+  {{- $pageLink := path.Join $basePath $page.RelPermalink -}}
+  {{- if strings.HasSuffix $page.RelPermalink "/" -}}
+    {{- $pageLink = printf "%s/" $pageLink -}}
+  {{- end -}}
   {{- $data := partial "utils/fragments" (dict "context" $page "type" $indexType) -}}
   {{- $output = $output | merge (dict $pageLink (dict "title" $pageTitle "data" $data)) -}}
 {{- end -}}
@@ -32,6 +36,7 @@
   "data" $glossaryEntries
 -}}
 
-{{- $output = $output | merge (dict (relLangURL "glossary") $glossary )}}
+{{- $glossaryLink := path.Join $basePath (relLangURL "glossary") -}}
+{{- $output = $output | merge (dict $glossaryLink $glossary )}}
 
 {{- $output | jsonify -}}
