@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-  <image class="hx:dark:hidden" href="/icons/vk-light.png" width="24" height="24" />
-  <image class="hx:hidden hx:dark:block" href="/icons/vk-dark.png" width="24" height="24" />
-</svg>
+vk: >
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+    <image class="hx:dark:hidden" href="/icons/vk-light.png" width="24" height="24" />
+    <image class="hx:hidden hx:dark:block" href="/icons/vk-dark.png" width="24" height="24" />
+  </svg>
