@@ -1,4 +1,4 @@
-name: Docs (Hugo) -> GitHub Pages (test)
+name: Docs (Hugo)
 
 on:
   push:
@@ -6,13 +6,14 @@ on:
   workflow_dispatch:
 
 env:
+  PROJECT_SLUG: vkliveservice
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: write
 
 concurrency:
-  group: docs-pages-${{ github.ref }}
+  group: docs-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -31,14 +32,6 @@ jobs:
           hugo-version: "latest"
           extended: true
 
-      - name: Compute site path
-        id: site
-        shell: bash
-        run: |
-          branch="${GITHUB_REF_NAME}"
-          if [ "$branch" = "testDocs" ]; then echo "path=test-docs" >> "$GITHUB_OUTPUT"; exit 0; fi
-          echo "path=${branch}" >> "$GITHUB_OUTPUT"
-
       - name: Prepare README for docs build
         shell: bash
         run: |
@@ -47,13 +40,9 @@ jobs:
           import os
           
           text = Path("README.md").read_text(encoding="utf-8")
-          # GitHub-friendly links -> site routes (Hugo pages)
-          # Важно: ссылки делаем относительными, чтобы они работали в подпапке ветки:
-          # https://docs.nuboheimer.ru/<branch>/
           text = text.replace("(docs/content/INSTALLATION.md)", "(installation/)")
           text = text.replace("(docs/content/USAGE.md)", "(usage/)")
 
-          # CHANGELOG оставляем на GitHub (в текущей ветке)
           repo = os.environ.get("GITHUB_REPOSITORY")
           ref = os.environ.get("GITHUB_REF_NAME")
           if repo and ref:
@@ -66,15 +55,29 @@ jobs:
       - name: Build (from /docs)
         shell: bash
         run: |
-          SITE_PATH="${{ steps.site.outputs.path }}"
-          BASE_URL="https://docs.nuboheimer.ru/${SITE_PATH}/"
-          hugo --source docs --minify --baseURL "$BASE_URL" --destination "../_site/${SITE_PATH}"
+          slug="${PROJECT_SLUG}"
+          hugo --source docs --minify \
+            --baseURL "https://nuboheimer.ru/dev-docs/${slug}/" \
+            --destination "../_site"
 
-      - name: Deploy to gh-pages (subdir)
+      # ── GitHub Pages ───────────────────────────────────────────
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: ./_site/${{ steps.site.outputs.path }}
-          destination_dir: ${{ steps.site.outputs.path }}
+          publish_dir: ./_site
+          destination_dir: ${{ env.PROJECT_SLUG }}
           cname: docs.nuboheimer.ru
+
+      # ── VPS → dev-docs ─────────────────────────────────────────
+      - name: Deploy to VPS
+        uses: easingthemes/ssh-deploy@v5
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
+          ARGS: "-rlgoDzvc --delete"
+          SOURCE: "./_site/"
+          REMOTE_HOST: ${{ secrets.VPS_HOST }}
+          REMOTE_USER: ${{ secrets.VPS_USER }}
+          REMOTE_PORT: ${{ secrets.VPS_PORT }}
+          TARGET: "/var/www/nubosite/dev-docs-data/${{ env.PROJECT_SLUG }}/"
