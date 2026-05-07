@@ -2,7 +2,7 @@ name: Docs (Hugo)
 
 on:
   push:
-    branches: [ testDocs ]
+    branches: [ dev ]
   workflow_dispatch:
 
 env:
