@@ -44,11 +44,22 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import os
           
           text = Path("README.md").read_text(encoding="utf-8")
           # GitHub-friendly links -> site routes (Hugo pages)
-          text = text.replace("(docs/INSTALLATION.md)", "(/docs/installation/)")
-          text = text.replace("(docs/USAGE.md)", "(/docs/usage/)")
+          # Важно: ссылки делаем относительными, чтобы они работали в подпапке ветки:
+          # https://docs.nuboheimer.ru/<branch>/
+          text = text.replace("(docs/INSTALLATION.md)", "(installation/)")
+          text = text.replace("(docs/USAGE.md)", "(usage/)")
+
+          # CHANGELOG оставляем на GitHub (в текущей ветке)
+          repo = os.environ.get("GITHUB_REPOSITORY")
+          ref = os.environ.get("GITHUB_REF_NAME")
+          if repo and ref:
+            changelog_url = f"https://github.com/{repo}/blob/{ref}/CHANGELOG.md"
+            text = text.replace("(CHANGELOG.md)", f"({changelog_url})")
+
           Path("docs/README.project.md").write_text(text, encoding="utf-8")
           PY
 
