@@ -32,14 +32,6 @@ jobs:
           hugo-version: "latest"
           extended: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Setup Pagefind
-        run: npm install -g pagefind
-
       - name: Prepare README for docs build
         shell: bash
         run: |
@@ -63,13 +55,9 @@ jobs:
       - name: Build (from /docs)
         shell: bash
         run: |
-          slug="${PROJECT_SLUG}"
           hugo --source docs --minify \
-            --baseURL "https://nuboheimer.ru/dev-docs/${slug}/" \
+            --baseURL "https://docs.nuboheimer.ru/test-docs/" \
             --destination "../_site"
-
-      - name: Index with Pagefind
-        run: pagefind --site _site
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
@@ -77,7 +65,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: ./_site
-          destination_dir: ${{ env.PROJECT_SLUG }}
+          destination_dir: test-docs
           cname: docs.nuboheimer.ru
 
       - name: Deploy to VPS
