@@ -21,6 +21,8 @@ disablePathToLower = true
     endLevel = 9
 
 [params]
+  search:
+    enable: true
   [params.theme]
     # light | dark | system
     default = "system"
