@@ -1,5 +1,5 @@
 ---
-title: "VkLiveService - Руководство по установке и обновлению."
+title: "Установке и обновлению."
 weight: 1
 slug: "installation"
 url: "/installation/"

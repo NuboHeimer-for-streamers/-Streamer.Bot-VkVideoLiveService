@@ -15,8 +15,8 @@ VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo
 
 ## 📚 Документация
 
-- [Установка и обновление](docs/content/docs/INSTALLATION.md)
-- [Использование](docs/content/docs/USAGE.md)
+- [Установка и обновление](docs/content/INSTALLATION.md)
+- [Использование](docs/content/USAGE.md)
 - [История изменений](CHANGELOG.md)
 
 ## 🎯 Обзор
