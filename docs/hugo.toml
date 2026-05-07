@@ -28,3 +28,6 @@ disablePathToLower = true
 
   [params.toc]
     enable = true
+
+  [permalinks]
+  docs = "/:sections[last]/"
