@@ -3,7 +3,7 @@ title: "Установка и обновление."
 weight: 1
 type: "docs"
 slug: "installation"
-url: "/installation/"
+url: "installation/"
 ---
 
 ## Зависимости (обязательно для событий в MiniChat)
