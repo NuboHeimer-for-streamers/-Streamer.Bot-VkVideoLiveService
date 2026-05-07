@@ -1,8 +1,7 @@
 ---
 title: "VkLiveService"
-type: "docs"
 sidebar:
-  open: true
+  exclude: true
 ---
 
-{{< include-markdown path="README.project.md" >}}
+{{< include-markdown path="README.md" >}}
