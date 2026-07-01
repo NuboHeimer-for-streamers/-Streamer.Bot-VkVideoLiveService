@@ -179,7 +179,7 @@ url: "usage/"
 Пример цепочки для пререгистрации триггеров MiniChat (после реализации `RegisterRewardTriggers`):
 
 1. **\[VKVideoLive] Get Rewards**
-2. **\[MiniChat Trigger Manager] RegisterRewardTriggers** — `rewardNames` передаётся из предыдущего шага.
+2. **\[MiniChat Trigger Manager] RegisterRewardTriggers** — `rewardNames` из предыдущего шага.
 
 ### \[VKVideoLive] Off Reward
 
