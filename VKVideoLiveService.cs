@@ -38,6 +38,7 @@ public class CPHInline
     private const string VkLiveAuthUserAvatarUrlKey = "VkLiveAuthUserAvatarUrl";
 
     private const string VkLiveRewardsCacheKey = "VkLiveRewardsCache";
+    private const string VkLiveMiniChatServiceKey = "VKVideoLive";
 
     private readonly HttpClient _client = new();
     private VKVideoLiveApiService _vkVideoLiveApiService;
@@ -134,26 +135,89 @@ public class CPHInline
         if (cache.TryGetValue(rewardName, out rewardId) && !string.IsNullOrEmpty(rewardId))
             return rewardId;
 
-        var channelPoints = _vkVideoLiveApiService.GetChannelPoints(channelName, accessToken);
-        if (channelPoints == null || channelPoints.Rewards == null || channelPoints.Rewards.Count == 0)
-            return null;
+        RefreshRewardsCache(cph, channelName, accessToken);
 
+        cache = cph.GetGlobalVar<Dictionary<string, string>>(VkLiveRewardsCacheKey, true)
+               ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (cache.TryGetValue(cacheKey, out rewardId) && !string.IsNullOrEmpty(rewardId))
+            return rewardId;
+
+        return null;
+    }
+
+    private List<VKVideoLiveApiService.ChannelPointReward> RefreshRewardsCache(
+        IInlineInvokeProxy cph,
+        string channelName,
+        string accessToken)
+    {
+        var rewards = new List<VKVideoLiveApiService.ChannelPointReward>();
+        var channelPoints = _vkVideoLiveApiService.GetChannelPoints(channelName, accessToken);
         var updatedCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var reward in channelPoints.Rewards)
+
+        if (channelPoints?.Rewards != null)
         {
-            if (!string.IsNullOrWhiteSpace(reward.Name) && !string.IsNullOrWhiteSpace(reward.Id))
+            foreach (var reward in channelPoints.Rewards)
             {
-                string key = channelName + "::" + reward.Name;
-                updatedCache[key] = reward.Id;
+                rewards.Add(reward);
+
+                if (!string.IsNullOrWhiteSpace(reward.Name) && !string.IsNullOrWhiteSpace(reward.Id))
+                    updatedCache[channelName + "::" + reward.Name] = reward.Id;
             }
         }
 
         cph.SetGlobalVar(VkLiveRewardsCacheKey, updatedCache, true);
+        return rewards;
+    }
 
-        if (updatedCache.TryGetValue(cacheKey, out rewardId) && !string.IsNullOrEmpty(rewardId))
-            return rewardId;
+    public bool GetRewards()
+    {
+        return GetRewardsInternal(CPH);
+    }
 
-        return null;
+    private bool GetRewardsInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
+            return false;
+
+        string channelName = channelNameObj.ToString();
+        if (string.IsNullOrWhiteSpace(channelName))
+        {
+            cph.LogWarn("[VKVideoLive get rewards] Значение channel_name пустое.");
+            return false;
+        }
+
+        try
+        {
+            var authState = EnsureValidAuth(cph);
+            if (authState == null)
+                return false;
+
+            var rewards = RefreshRewardsCache(cph, channelName, authState.AccessToken);
+            var rewardNames = rewards
+                .Where(reward => !string.IsNullOrWhiteSpace(reward.Name))
+                .Select(reward => reward.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            cph.SetArgument("rewardNames", rewardNames);
+            cph.SetArgument("rewardsCount", rewardNames.Count);
+            cph.SetArgument("minichat.Service", VkLiveMiniChatServiceKey);
+
+            cph.LogInfo(
+                "[VKVideoLive get rewards] Канал: '"
+                + channelName
+                + "', получено наград: "
+                + rewardNames.Count
+                + ".");
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            cph.LogWarn("[VKVideoLive get rewards] Ошибка при получении списка наград, " + e.Message);
+            return false;
+        }
     }
 
     public bool OffReward()

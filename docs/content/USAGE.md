@@ -165,6 +165,22 @@ url: "usage/"
 - Аргумент: `channel_name` — URL канала, как для остальных экшенов.
 - Имеет смысл вызывать, когда нужна именно общее число зрителей на трансляции; для списка ников по-прежнему используйте **\[VKVideoLive] Get Viewers**.
 
+### \[VKVideoLive] Get Rewards
+
+Экшен запрашивает у API список наград канала, обновляет кэш `VkLiveRewardsCache` и записывает имена в аргумент `rewardNames`.
+
+- Аргумент: `channel_name` — URL канала, как для остальных экшенов (см. раздел **Настройка модуля и стримербота**).
+- В список попадают все награды канала, включая отключённые.
+- Результат:
+  - `rewardNames` — список имён наград;
+  - `rewardsCount` — количество имён в списке;
+  - `minichat.Service` — `VKVideoLive` (для цепочки с MiniChat Trigger Manager).
+
+Пример цепочки для пререгистрации триггеров MiniChat (после реализации `RegisterRewardTriggers`):
+
+1. **\[VKVideoLive] Get Rewards**
+2. **\[MiniChat Trigger Manager] RegisterRewardTriggers** — `rewardNames` передаётся из предыдущего шага.
+
 ### \[VKVideoLive] Off Reward
 
 Экшен позволяет отключить любую награду канала.  
