@@ -169,6 +169,8 @@ url: "usage/"
 
 Экшен запрашивает у API список наград канала, обновляет кэш `VkLiveRewardsCache` и записывает имена в аргумент `rewardNames`.
 
+{{< img class="center" src="/images/usage/GetRewards.png" alt="VkLiveGetViewersCount: экшен Get Rewards.png" >}}
+
 - Аргумент: `channel_name` — URL канала, как для остальных экшенов (см. раздел **Настройка модуля и стримербота**).
 - В список попадают все награды канала, включая отключённые.
 - Результат:
