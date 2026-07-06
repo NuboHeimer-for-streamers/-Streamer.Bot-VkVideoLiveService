@@ -3,8 +3,7 @@
 ### 4.1.0 -- 2026-07-06
 
 - **Добавлено**
-  - Метод `GetRewards` — получает полный список наград канала из API (включая отключённые), обновляет кэш `VkLiveRewardsCache` и записывает имена в аргумент `rewardNames`.
-  - Аргумент `minichat.Service` со значением `VKVideoLive` для последующей пререгистрации триггеров в MiniChat.
+  - Метод `GetRewards` — получает полный список наград канала из API (включая отключённые), обновляет кэш `VkLiveRewardsCache` и записывает результат в аргументы `rewardNames`, `rewardsCount` и `minichat.Service` (`VKVideoLive`).
 
 ### 4.0.0 — 2026-14-04
 

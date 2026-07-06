@@ -169,7 +169,7 @@ url: "usage/"
 
 Экшен запрашивает у API список наград канала, обновляет кэш `VkLiveRewardsCache` и записывает имена в аргумент `rewardNames`.
 
-{{< img class="center" src="/images/usage/GetRewards.png" alt="VkLiveGetViewersCount: экшен Get Rewards.png" >}}
+{{< img class="center" src="/images/usage/GetRewards.png" alt="Экшен Get Rewards" >}}
 
 - Аргумент: `channel_name` — URL канала, как для остальных экшенов (см. раздел **Настройка модуля и стримербота**).
 - В список попадают все награды канала, включая отключённые.
@@ -177,11 +177,12 @@ url: "usage/"
   - `rewardNames` — список имён наград;
   - `rewardsCount` — количество имён в списке;
   - `minichat.Service` — `VKVideoLive` (для цепочки с MiniChat Trigger Manager).
+- Для **On Reward**, **Off Reward** и **ActivateReward** отдельный вызов **Get Rewards** не обязателен: кэш `VkLiveRewardsCache` обновляется автоматически при обращении к награде по имени.
 
-Пример цепочки для пререгистрации триггеров MiniChat (после реализации `RegisterRewardTriggers`):
+Пример цепочки для пререгистрации триггеров MiniChat (метод `RegisterRewardTriggers` в MiniChat Trigger Manager):
 
 1. **\[VKVideoLive] Get Rewards**
-2. **\[MiniChat Trigger Manager] RegisterRewardTriggers** — `rewardNames` из предыдущего шага.
+2. **\[MiniChat Trigger Manager] RegisterRewardTriggers** — `rewardNames` и `minichat.Service` из предыдущего шага.
 
 ### \[VKVideoLive] Off Reward
 
