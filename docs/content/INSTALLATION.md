@@ -1,6 +1,6 @@
 ---
 title: "Установка и обновление."
-weight: 1
+weight: 2
 type: "docs"
 slug: "installation"
 url: "installation/"
@@ -16,7 +16,7 @@ url: "installation/"
 Если интеграция MiniChat не установлена или не подключена, то экшены сервиса будут выполняться, но **события в MiniChat отображаться не будут**.
 
 ## Установка.
-1. Скачайте файл `VkLiveService.txt` из последнего [релиза](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/releases).
+1. Скачайте файл импорта `VkLiveService-<version>.txt` со страницы [Скачать / версии]({{< relref "DOWNLOAD.md" >}}).
 2. Запустите стримербот.
 3. В верхнем меню нажмите кнопку **Import**.
 

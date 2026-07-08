@@ -1,6 +1,6 @@
 ---
 title: "Использование"
-weight: 2
+weight: 3
 type: "docs"
 description: "Руководство по настройке VkLiveService: создание приложения VK, авторизация в Streamer.bot и использование экшенов."
 slug: "usage"
