@@ -68,6 +68,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
+          script_stop: true
           script: |
             rm -rf /var/www/nubosite/docs-data/${{ env.PROJECT_SLUG }}/*
 
