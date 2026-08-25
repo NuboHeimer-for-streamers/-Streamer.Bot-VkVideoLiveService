@@ -7,9 +7,26 @@ slug: "download"
 url: "download/"
 ---
 
-**Последняя версия:** 4.1.0 (2026-07-06) — см. раздел ниже.
+**Последняя версия:** 5.0.0_dev.1 (2026-08-25) — см. раздел ниже.
 
 После скачивания следуйте [инструкции по установке]({{< relref "INSTALLATION.md" >}}).
+
+---
+
+### Версия 5.0.0_dev.1 (Dev)
+
+**Дата:** 2026-08-25  
+{{< cards cols="1" >}}
+  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.1.txt" title="Скачать VkLiveService_5.0.0_dev.1.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
+{{< /cards >}}
+
+**Основные изменения:**
+
+- Breaking: приход/уход зрителей через кастомные триггеры вместо MiniChat `CreateCustomEvent`.
+- Триггеры `Viewer First Today` / `Viewer Joined` / `Viewer Left`.
+- Скрипт `tools/Pack-StreamerBotImport.ps1` для сборки import-файла.
+
+Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev1--2026-08-25).
 
 ---
 
