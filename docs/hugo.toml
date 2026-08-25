@@ -22,7 +22,7 @@ disablePathToLower = true
     enable = true
 
   [params.theme]
-    default = "system"
+    default = "dark"
     displayToggle = true
 
   [params.toc]
