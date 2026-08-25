@@ -6,13 +6,12 @@
 ///   Help:         https://vk.com/topic-236253647_57236856
 ///----------------------------------------------------------------------------
 
-///   Version:      4.1.0
+///   Version:      5.0.0_dev.1
 using System;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Collections.Generic;
-using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
@@ -40,6 +39,10 @@ public class CPHInline
     private const string VkLiveRewardsCacheKey = "VkLiveRewardsCache";
     private const string VkLiveMiniChatServiceKey = "VKVideoLive";
 
+    private const string VkLiveViewerFirstTodayEvent = "VKVideoLive_ViewerFirstToday";
+    private const string VkLiveViewerJoinedEvent = "VKVideoLive_ViewerJoined";
+    private const string VkLiveViewerLeftEvent = "VKVideoLive_ViewerLeft";
+
     private readonly HttpClient _client = new();
     private VKVideoLiveApiService _vkVideoLiveApiService;
     private VkOAuthService _vkAuthService;
@@ -53,7 +56,11 @@ public class CPHInline
         if (CPH.GetGlobalVar<HashSet<string>>(VkLivePreviousPresentViewersKey, true) == null)
             CPH.SetGlobalVar(VkLivePreviousPresentViewersKey, new HashSet<string>(), true);
 
-        CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
+        var vkLiveCategory = new[] { "VK Video Live" };
+        CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", vkLiveCategory);
+        CPH.RegisterCustomTrigger("Viewer First Today (VkLive)", VkLiveViewerFirstTodayEvent, vkLiveCategory);
+        CPH.RegisterCustomTrigger("Viewer Joined (VkLive)", VkLiveViewerJoinedEvent, vkLiveCategory);
+        CPH.RegisterCustomTrigger("Viewer Left (VkLive)", VkLiveViewerLeftEvent, vkLiveCategory);
     }
 
     public bool ClearTodaysViewers()
@@ -556,7 +563,7 @@ public class CPHInline
             {
                 if (!todaysViewers.Contains(name))
                 {
-                    CreateViewerEvent(cph, name, "Обнаружен(а) впервые на текущей трансляции.");
+                    TriggerViewerPresence(cph, name, VkLiveViewerFirstTodayEvent);
                     todaysViewers.Add(name);
                     newTodayNames.Add(name);
                 }
@@ -568,13 +575,13 @@ public class CPHInline
                 if (newTodayNames.Contains(name))
                     continue;
                 if (!previousPresent.Contains(name))
-                    CreateViewerEvent(cph, name, "Обнаружен(а) в списке зрителей.");
+                    TriggerViewerPresence(cph, name, VkLiveViewerJoinedEvent);
             }
 
             foreach (var name in previousPresent)
             {
                 if (!currentNames.Contains(name))
-                    CreateViewerEvent(cph, name, "Пропал(а) из списка зрителей.");
+                    TriggerViewerPresence(cph, name, VkLiveViewerLeftEvent);
             }
 
             cph.SetGlobalVar(VkLivePreviousPresentViewersKey, new HashSet<string>(currentNamesForSaving), true);
@@ -587,13 +594,11 @@ public class CPHInline
         }
     }
 
-    private void CreateViewerEvent(IInlineInvokeProxy cph, string displayName, string messageText)
+    private void TriggerViewerPresence(IInlineInvokeProxy cph, string displayName, string eventName)
     {
-        cph.SetArgument("service", "VKVideoLive");
-        cph.SetArgument("title", displayName);
-        cph.SetArgument("message", messageText);
-        cph.ExecuteMethod("MiniChat Method Collection", "CreateCustomEvent");
-        Thread.Sleep(200);
+        cph.SetArgument("userName", displayName);
+        cph.SetArgument("user", displayName);
+        cph.TriggerCodeEvent(eventName, true);
     }
 
     public bool GetNewViewers()
@@ -623,7 +628,7 @@ public class CPHInline
 
                 todayViewers.Add(displayName);
                 cph.SetGlobalVar(VkLiveTodaysViewersKey, todayViewers, true);
-                CreateViewerEvent(cph, "Новый зритель", displayName);
+                TriggerViewerPresence(cph, displayName, VkLiveViewerFirstTodayEvent);
                 cph.LogInfo("Новый зритель: " + displayName);
             }
         }
