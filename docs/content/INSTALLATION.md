@@ -6,14 +6,17 @@ slug: "installation"
 url: "installation/"
 ---
 
-## Зависимости (обязательно для событий в MiniChat)
-Если вы используете события, которые должны **отображаться в MiniChat**, у вас должна быть установлена и подключена интеграция **MiniChat** для Streamer.bot.
+## Зависимости (MiniChat — опционально)
 
-В коде сервиса события отправляются через вызов метода:
-- коллекция методов: `MiniChat Method Collection`
-- метод: `CreateCustomEvent`
+Базовая работа модуля (авторизация, Get Viewers, приход/уход через кастомные триггеры) **не требует** MiniChat.
 
-Если интеграция MiniChat не установлена или не подключена, то экшены сервиса будут выполняться, но **события в MiniChat отображаться не будут**.
+MiniChat нужен, если вы:
+- сами отправляете события в MiniChat с триггеров Viewer First Today / Joined / Left (или других);
+- используете **First Words** / пререгистрацию триггеров наград через MiniChat Trigger Manager.
+
+Типичные точки интеграции:
+- коллекция методов: `MiniChat Method Collection` (например `CreateCustomEvent` в вашем action);
+- `MiniChat Trigger Manager` для наград / First Words.
 
 ## Установка.
 1. Скачайте файл импорта `VkLiveService-<version>.txt` со страницы [Скачать / версии]({{< relref "DOWNLOAD.md" >}}).

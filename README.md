@@ -1,7 +1,7 @@
 VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo.ru/) для [Streamer.bot](https://streamer.bot/).
 
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-[![Version](https://img.shields.io/badge/Version-4.1.0-blue.svg)](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService)
+[![Version](https://img.shields.io/badge/Version-5.0.0__dev.1-blue.svg)](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService)
 
 Модуль позволяет получать список активных зрителей, работать с наградами VK Video Live и использовать эти данные в сценариях Streamer.bot.
 
@@ -48,14 +48,14 @@ VKVideoLiveService — это набор методов для Streamer.bot, к�
   - `OffReward` — выключает награду за баллы по имени (`rewardName`). Кэш наград подтягивается автоматически.
   - `ActivateReward` — активирует награду от вашего имени. Кэш наград подтягивается автоматически.
 
-## 🔌 Зависимости (MiniChat для отображаемых событий)
-Часть событий этого сервиса рассчитана на отображение в **MiniChat** и отправляется через:
-- коллекция методов: `MiniChat Method Collection`
-- метод: `CreateCustomEvent`
+## 🔌 Зависимости (MiniChat — опционально)
 
-Если интеграция MiniChat не установлена или не импортирована, то экшены сервиса могут выполняться, но **события в MiniChat отображаться не будут**.
+Приход/уход и «новый зритель» больше **не** отправляются в MiniChat из кода сервиса. Для них используются кастомные триггеры Streamer.bot (`Viewer First Today` / `Viewer Joined` / `Viewer Left`); отправку в MiniChat при необходимости собираете отдельным action.
 
-Для пререгистрации триггеров наград в MiniChat Trigger Manager: **Get Rewards** → `RegisterRewardTriggers` (передаётся `rewardNames` и `minichat.Service` из предыдущего шага).
+MiniChat по-прежнему нужен для сценариев вроде **First Words** и пререгистрации триггеров наград:
+
+- коллекция методов: `MiniChat Method Collection` / `MiniChat Trigger Manager`
+- для наград: **Get Rewards** → `RegisterRewardTriggers` (`rewardNames` и `minichat.Service` из предыдущего шага)
 
 ### Где взять интеграцию:
 - [Оригинал в Telegram Bot Streamfony](https://t.me/StreamfonyBot/app?startapp=plugin_19-utm_share)
