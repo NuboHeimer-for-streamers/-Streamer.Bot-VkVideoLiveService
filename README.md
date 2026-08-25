@@ -1,7 +1,7 @@
 VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo.ru/) для [Streamer.bot](https://streamer.bot/).
 
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-[![Version](https://img.shields.io/badge/Version-5.0.0__dev.1-blue.svg)](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService)
+[![Version](https://img.shields.io/badge/Version-5.0.0__dev.3-blue.svg)](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService)
 
 Модуль позволяет получать список активных зрителей, работать с наградами VK Video Live и использовать эти данные в сценариях Streamer.bot.
 
@@ -24,7 +24,7 @@ VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo
 
 VKVideoLiveService — это набор методов для Streamer.bot, которые упрощают работу с VK Video Live:
 
-- получение списка активных зрителей и их количества;
+- получение списка активных зрителей, количества и **детальных данных одного зрителя**;
 - выбор случайного зрителя;
 - управление наградами за баллы;
 
@@ -38,6 +38,9 @@ VKVideoLiveService — это набор методов для Streamer.bot, к�
 
 - **Get Viewers Count**
   - Запрашивает у API фактическое количество зрителей на канале и записывает его в аргумент `viewers_count`.
+
+- **Get Viewer Info**
+  - Запрашивает детальные данные зрителя по `userId` через официальный `GET /chat/member` (статистика, роли, значки). `avatarUrl` / `nickColor` — из MiniChat.
 
 - **Get Random Viewer**
   - Выбирает случайного зрителя из списка *активных* зрителей (см. **Get Viewers**) и записывает его имя в аргумент `randomUserName0`.

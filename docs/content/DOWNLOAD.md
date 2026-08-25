@@ -7,9 +7,40 @@ slug: "download"
 url: "download/"
 ---
 
-**Последняя версия:** 5.0.0_dev.1 (2026-08-25) — см. раздел ниже.
+**Последняя версия:** 5.0.0_dev.3 (2026-08-25) — см. раздел ниже.
 
 После скачивания следуйте [инструкции по установке]({{< relref "INSTALLATION.md" >}}).
+
+---
+
+### Версия 5.0.0_dev.3 (Dev)
+
+**Дата:** 2026-08-25  
+{{< cards cols="1" >}}
+  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.3.txt" title="Скачать VkLiveService_5.0.0_dev.3.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
+{{< /cards >}}
+
+**Основные изменения:**
+
+- Метод `GetViewerInfo` — данные зрителя через официальный `GET /chat/member`.
+- Без неофициального manage `v8` (токен приложения не подходит).
+
+Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev3--2026-08-25).
+
+---
+
+### Версия 5.0.0_dev.2 (Dev)
+
+**Дата:** 2026-08-25  
+{{< cards cols="1" >}}
+  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.2.txt" title="Скачать VkLiveService_5.0.0_dev.2.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
+{{< /cards >}}
+
+**Основные изменения:**
+
+- Метод `GetViewer` — детальные данные зрителя по `userId` (`GET /chat/member`).
+
+Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev2--2026-08-25).
 
 ---
 

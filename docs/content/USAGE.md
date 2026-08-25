@@ -148,6 +148,22 @@ url: "usage/"
 
 {{< img class="center" src="/images/usage/VkLive_Random_Viewer.png" alt="Экшен Get Random Viewer" >}}
 
+### \[VKVideoLive] Get Viewer Info
+
+Экшен запрашивает у **официального** API детальные данные одного зрителя (`GET /chat/member`).
+
+- Аргументы:
+  - `channel_name` — URL канала, как для остальных экшенов;
+  - `userId` / `user_id` / `id`, либо `minichat.Data.UserID` из MiniChat.
+- Результат:
+  - `userName` / `user`, `userId`;
+  - `isModerator`, `isOwner`;
+  - `registeredAt` (если API отдал ненулевое значение);
+  - `chatMessagesCount`, `permanentBansCount`, `temporaryBansCount`, `totalWatchedTime` (секунды);
+  - `roleNames`, `badgeNames`;
+  - `channelStatus`, `channelUrl`.
+- `avatarUrl` и `nickColor` не перезаписываются — берите из MiniChat.
+
 ### \[VKVideoLive] Get Viewers
 
 Экшен получает список зрителей аналогично тому, как это делает родной **PresentViewers**. Список VK ограничен количеством в 200 зрителей.

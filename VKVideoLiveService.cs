@@ -6,7 +6,7 @@
 ///   Help:         https://vk.com/topic-236253647_57236856
 ///----------------------------------------------------------------------------
 
-///   Version:      5.0.0_dev.1
+///   Version:      5.0.0_dev.3
 using System;
 using System.Net;
 using System.Net.Http;
@@ -338,6 +338,344 @@ public class CPHInline
             cph.LogWarn("[VKVideoLive reward activate] Ошибка при активации награды по имени, " + e.Message);
             return false;
         }
+    }
+
+    public bool GetViewerInfo()
+    {
+        return GetViewerInfoInternal(CPH);
+    }
+
+    private bool GetViewerInfoInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
+        {
+            cph.LogWarn("[VKVideoLive get viewer info] Missing required argument channel_name.");
+            return false;
+        }
+
+        string channelName = channelNameObj.ToString();
+
+        try
+        {
+            var authState = EnsureValidAuth(cph);
+            if (authState == null)
+                return false;
+
+            if (!TryResolveViewerUserId(cph, channelName, authState.AccessToken, out long userId))
+                return false;
+
+            string url = VKVideoLiveApiService.ServiceOfficialApiHost
+                         + "/chat/member?channel_url=" + Uri.EscapeDataString(channelName)
+                         + "&user_id=" + userId;
+
+            if (!TryGetJson(url, authState.AccessToken, out JObject root, out string error))
+            {
+                cph.LogWarn("[VKVideoLive get viewer info] /chat/member failed: " + error);
+                return false;
+            }
+
+            var data = AsObject(root["data"]);
+            var user = AsObject(data?["user"]);
+            var statistics = AsObject(data?["statistics"]);
+            var channel = AsObject(data?["channel"]);
+
+            string nick = user?["nick"]?.ToString() ?? string.Empty;
+            long id = userId;
+            if (!TryReadPositiveLong(user?["id"], out id))
+                id = userId;
+
+            bool isModerator = user?["is_moderator"]?.ToObject<bool>() ?? false;
+            bool isOwner = user?["is_owner"]?.ToObject<bool>() ?? false;
+
+            long registeredAt = 0;
+            if (TryReadPositiveLong(user?["registered_at"], out registeredAt))
+                cph.SetArgument("registeredAt", registeredAt);
+
+            long chatMessagesCount = 0;
+            TryReadNonNegativeLong(statistics?["chat_messages_count"], out chatMessagesCount);
+
+            long permanentBansCount = 0;
+            TryReadNonNegativeLong(statistics?["permanent_bans_count"], out permanentBansCount);
+
+            long temporaryBansCount = 0;
+            TryReadNonNegativeLong(statistics?["temporary_bans_count"], out temporaryBansCount);
+
+            long totalWatchedTime = 0;
+            TryReadNonNegativeLong(statistics?["total_watched_time"], out totalWatchedTime);
+
+            var roleNames = new List<string>();
+            if (user?["roles"] is JArray roles)
+            {
+                foreach (var role in roles)
+                {
+                    string roleName = role["name"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(roleName))
+                        roleNames.Add(roleName);
+                }
+            }
+
+            var badgeNames = new List<string>();
+            if (user?["badges"] is JArray badges)
+            {
+                foreach (var badge in badges)
+                {
+                    string badgeName = badge["name"]?.ToString();
+                    if (string.IsNullOrWhiteSpace(badgeName))
+                        badgeName = badge["achievement_name"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(badgeName))
+                        badgeNames.Add(badgeName);
+                }
+            }
+
+            cph.SetArgument("userName", nick);
+            cph.SetArgument("user", nick);
+            cph.SetArgument("userId", id);
+            cph.SetArgument("isModerator", isModerator);
+            cph.SetArgument("isOwner", isOwner);
+            cph.SetArgument("chatMessagesCount", chatMessagesCount);
+            cph.SetArgument("permanentBansCount", permanentBansCount);
+            cph.SetArgument("temporaryBansCount", temporaryBansCount);
+            cph.SetArgument("totalWatchedTime", totalWatchedTime);
+            cph.SetArgument("roleNames", roleNames);
+            cph.SetArgument("badgeNames", badgeNames);
+            cph.SetArgument("channelStatus", channel?["status"]?.ToString() ?? string.Empty);
+            cph.SetArgument("channelUrl", channel?["url"]?.ToString() ?? string.Empty);
+
+            cph.LogInfo("[VKVideoLive get viewer info] userId=" + id + ", nick='" + nick
+                        + "', messages=" + chatMessagesCount
+                        + ", watched=" + totalWatchedTime
+                        + ", registeredAt=" + registeredAt);
+            return true;
+        }
+        catch (Exception e)
+        {
+            cph.LogWarn("[VKVideoLive get viewer info] Error fetching viewer, " + e.Message);
+            return false;
+        }
+    }
+
+    private bool TryGetJson(string url, string accessToken, out JObject root, out string error)
+    {
+        root = null;
+        error = null;
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+            using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            if (!response.IsSuccessStatusCode)
+            {
+                error = "HTTP " + (int)response.StatusCode + ": " + TruncateForLog(responseBody);
+                return false;
+            }
+
+            root = JObject.Parse(responseBody);
+            if (AsObject(root["data"]) == null)
+            {
+                error = "empty data";
+                root = null;
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            error = e.Message;
+            return false;
+        }
+    }
+
+    private static JObject AsObject(JToken token)
+    {
+        return token is JObject jo ? jo : null;
+    }
+
+    private static bool TryReadPositiveLong(JToken token, out long value)
+    {
+        value = 0;
+        return TryReadLong(token, out value, requirePositive: true);
+    }
+
+    private static bool TryReadNonNegativeLong(JToken token, out long value)
+    {
+        value = 0;
+        return TryReadLong(token, out value, requirePositive: false);
+    }
+
+    private static bool TryReadLong(JToken token, out long value, bool requirePositive)
+    {
+        value = 0;
+        if (token == null || token.Type == JTokenType.Null || token.Type == JTokenType.Undefined)
+            return false;
+
+        try
+        {
+            long parsed;
+            if (token.Type == JTokenType.Integer || token.Type == JTokenType.Float)
+            {
+                parsed = token.Value<long>();
+            }
+            else if (!long.TryParse(token.ToString(), out parsed))
+            {
+                return false;
+            }
+
+            if (parsed < 0)
+                return false;
+            if (requirePositive && parsed == 0)
+                return false;
+
+            value = parsed;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // Resolves user id from userId / user_id / id, or by nick via /chat/members (present list only).
+    private bool TryResolveViewerUserId(IInlineInvokeProxy cph, string channelName, string accessToken, out long userId)
+    {
+        if (TryGetViewerUserIdArg(cph, out userId))
+            return true;
+
+        string nick = null;
+        if (cph.TryGetArg("userName", out object userNameObj) && userNameObj != null)
+            nick = userNameObj.ToString();
+        else if (cph.TryGetArg("user", out object userObj) && userObj != null)
+            nick = userObj.ToString();
+
+        if (string.IsNullOrWhiteSpace(nick))
+        {
+            cph.LogWarn("[VKVideoLive get viewer] Missing userId (user_id / id / minichat.Data.UserID). Optionally pass userName/user to resolve from present viewers.");
+            return false;
+        }
+
+        if (!TryFindUserIdByNick(channelName, accessToken, nick.Trim(), out userId))
+        {
+            cph.LogWarn("[VKVideoLive get viewer] Could not resolve userId for nick '" + nick + "' in present viewers (max 200).");
+            return false;
+        }
+
+        cph.LogInfo("[VKVideoLive get viewer] Resolved nick '" + nick + "' → userId=" + userId);
+        return true;
+    }
+
+    private static bool TryGetViewerUserIdArg(IInlineInvokeProxy cph, out long userId)
+    {
+        userId = 0;
+        object userIdObj = null;
+        if (cph.TryGetArg("userId", out userIdObj) && userIdObj != null)
+        {
+            // ok
+        }
+        else if (cph.TryGetArg("user_id", out userIdObj) && userIdObj != null)
+        {
+            // ok
+        }
+        else if (cph.TryGetArg("id", out userIdObj) && userIdObj != null)
+        {
+            // ok — same key as GetViewers users[].id
+        }
+        else if (cph.TryGetArg("minichat.Data.UserID", out userIdObj) && userIdObj != null)
+        {
+            // ok — MiniChat chat / event payload
+        }
+        else
+        {
+            return false;
+        }
+
+        return TryCoerceToPositiveLong(userIdObj, out userId);
+    }
+
+    private static bool TryCoerceToPositiveLong(object value, out long userId)
+    {
+        userId = 0;
+        if (value == null)
+            return false;
+
+        switch (value)
+        {
+            case long l:
+                userId = l;
+                break;
+            case int i:
+                userId = i;
+                break;
+            case short s:
+                userId = s;
+                break;
+            case uint ui:
+                userId = ui;
+                break;
+            case ulong ul when ul <= long.MaxValue:
+                userId = (long)ul;
+                break;
+            case double d:
+                userId = (long)d;
+                break;
+            case float f:
+                userId = (long)f;
+                break;
+            case decimal m:
+                userId = (long)m;
+                break;
+            default:
+                if (!long.TryParse(value.ToString(), out userId))
+                    return false;
+                break;
+        }
+
+        return userId > 0;
+    }
+
+    private bool TryFindUserIdByNick(string channelName, string accessToken, string nick, out long userId)
+    {
+        userId = 0;
+        string url = VKVideoLiveApiService.ServiceOfficialApiHost
+                     + "/chat/members?channel_url=" + Uri.EscapeDataString(channelName)
+                     + "&limit=200";
+
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        using HttpResponseMessage response = _client.GetAsync(url).GetAwaiter().GetResult();
+        string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        if (!response.IsSuccessStatusCode)
+            return false;
+
+        var usersToken = JObject.Parse(responseBody)["data"]?["users"] as JArray;
+        if (usersToken == null)
+            return false;
+
+        foreach (var user in usersToken)
+        {
+            string userNick = user["nick"]?.ToString();
+            if (string.IsNullOrWhiteSpace(userNick))
+                continue;
+            if (!string.Equals(userNick, nick, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            long? id = user["id"]?.ToObject<long?>();
+            if (id.HasValue && id.Value > 0)
+            {
+                userId = id.Value;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string TruncateForLog(string text, int maxLen = 300)
+    {
+        if (string.IsNullOrEmpty(text))
+            return string.Empty;
+        text = text.Replace("\r", " ").Replace("\n", " ");
+        return text.Length <= maxLen ? text : text.Substring(0, maxLen) + "...";
     }
 
     public bool GetViewers()

@@ -37,7 +37,7 @@ param(
 
     [string]$SourceFileName = 'VKVideoLiveService.cs',
 
-    [string]$DefaultTemplate = 'VkLiveService_5.0.0_dev.1.txt',
+    [string]$DefaultTemplate = 'VkLiveService_5.0.0_dev.3.txt',
 
     [switch]$SkipDocsCopy
 )
