@@ -7,9 +7,41 @@ slug: "download"
 url: "download/"
 ---
 
-**Последняя версия:** 5.0.0_dev.3 (2026-08-25) — см. раздел ниже.
+**Последняя версия:** 5.0.0_dev.5 (2026-09-09) — см. раздел ниже.
 
 После скачивания следуйте [инструкции по установке]({{< relref "INSTALLATION.md" >}}).
+
+---
+
+### Версия 5.0.0_dev.5 (Dev)
+
+**Дата:** 2026-09-09  
+{{< cards cols="1" >}}
+  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.5.txt" title="Скачать VkLiveService_5.0.0_dev.5.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
+{{< /cards >}}
+
+**Основные изменения:**
+
+- Резолв `demandId`: лимит 5 страниц API и остановка на первой странице с открытым матчем.
+- Скрипт сборки import-файла: `tools/Pack-StreamerBotImport.sh` (WSL).
+
+Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev5--2026-09-09).
+
+---
+
+### Версия 5.0.0_dev.4 (Dev)
+
+**Дата:** 2026-09-09  
+{{< cards cols="1" >}}
+  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.4.txt" title="Скачать VkLiveService_5.0.0_dev.4.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
+{{< /cards >}}
+
+**Основные изменения:**
+
+- `GetRewardDemands` — список запросов наград зрителей.
+- `RejectRewardDemand` / `AcceptRewardDemand` — отклонение и принятие demand (`demandId` или MiniChat `userId` + `rewardId`).
+
+Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev4--2026-09-09).
 
 ---
 

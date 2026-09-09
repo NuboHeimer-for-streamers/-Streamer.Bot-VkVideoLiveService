@@ -1,5 +1,19 @@
 ## Changelog
 
+### 5.0.0_dev.5 — 2026-09-09
+
+- **Изменено**
+  - Резолв `demandId` по `userId` + reward: максимум 5 страниц API и остановка на первой странице с открытым матчем (страховка от бесконечной пагинации).
+  - Скрипт сборки import-файла: `tools/Pack-StreamerBotImport.sh` (WSL) вместо `tools/Pack-StreamerBotImport.ps1`.
+  - Пакер при сборке добавляет недостающие action’ы `Get Reward Demands` / `Reject Reward Demand` / `Accept Reward Demand`.
+
+### 5.0.0_dev.4 — 2026-09-09
+
+- **Добавлено**
+  - `GetRewardDemands` — список запросов наград (`GET /channel_point/reward/demands`).
+  - `RejectRewardDemand` / `AcceptRewardDemand` — отклонение и принятие demand (`…/demand/reject|accept`).
+  - Резолв `demandId` из MiniChat: `userId` + `rewardId` (или `rewardName`), либо явный `demandId`. При нескольких открытых матчах берётся самый свежий.
+
 ### 5.0.0_dev.3 — 2026-08-25
 
 - **Добавлено**
