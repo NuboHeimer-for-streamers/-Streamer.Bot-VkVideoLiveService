@@ -1,6 +1,10 @@
 /Examples
 .cursor/
 
+# Scratch / temp
+.tmp-*
+*.tmp
+
 # Repowise / local editor MCP (do not commit)
 /.repowise/
 /.claude/
