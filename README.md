@@ -1,7 +1,7 @@
 VKVideoLiveService — интеграция [VK Video Live](https://live.vkvideo.ru/) для [Streamer.bot](https://streamer.bot/).
 
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-[![Version](https://img.shields.io/badge/Version-5.0.0__dev.3-blue.svg)](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService)
+[![Version](https://img.shields.io/badge/Version-5.0.0__dev.5-blue.svg)](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService)
 
 Модуль позволяет получать список активных зрителей, работать с наградами VK Video Live и использовать эти данные в сценариях Streamer.bot.
 
@@ -50,6 +50,8 @@ VKVideoLiveService — это набор методов для Streamer.bot, к�
   - `OnReward` — включает награду за баллы по имени (`rewardName`). Кэш наград подтягивается автоматически, отдельный вызов `GetRewards` не обязателен.
   - `OffReward` — выключает награду за баллы по имени (`rewardName`). Кэш наград подтягивается автоматически.
   - `ActivateReward` — активирует награду от вашего имени. Кэш наград подтягивается автоматически.
+  - `GetRewardDemands` — список запросов наград (demands) зрителей.
+  - `RejectRewardDemand` / `AcceptRewardDemand` — отклонить или принять запрос; `demandId` либо резолв из MiniChat (`userId` + `rewardId`).
 
 ## 🔌 Зависимости (MiniChat — опционально)
 

@@ -202,6 +202,39 @@ url: "usage/"
 1. **\[VKVideoLive] Get Rewards**
 2. **\[MiniChat Trigger Manager] RegisterRewardTriggers** — `rewardNames` и `minichat.Service` из предыдущего шага.
 
+### \[VKVideoLive] Get Reward Demands
+
+Экшен получает страницу запросов наград (demands) зрителей через `GET /channel_point/reward/demands`.
+
+- Аргументы:
+  - `channel_name` — URL канала;
+  - `limit` — опционально, по умолчанию `200` (максимум API);
+  - `offset` — опционально, по умолчанию `0`.
+- Результат:
+  - `demandIds`, `demandRewardIds`, `demandUserIds`, `demandUserNicks`, `demandStatuses` — параллельные списки;
+  - `demandsCount` — число записей на странице;
+  - `demandsIsLast`, `demandsOffset` — пагинация из `extra` ответа API.
+
+MiniChat **не** отдаёт числовой `demandId` VK API (`%redemptionId%` — GUID события MiniChat). Для reject/accept либо берите id из этого списка, либо используйте резолв по `userId` + `rewardId` (см. ниже).
+
+### \[VKVideoLive] Reject Reward Demand / Accept Reward Demand
+
+Экшены отклоняют или принимают конкретный запрос награды (`POST …/demand/reject` или `…/demand/accept`).
+
+Общие аргументы:
+
+- `channel_name` — URL канала;
+- **либо** `demandId` / `demand_id` — числовой id demand из API;
+- **либо** (типично после триггера MiniChat Reward):
+  - `userId` / `user_id` / `minichat.Data.UserID`;
+  - `rewardId` / `reward_id` / `minichat.Data.RewardID` (или `rewardName` с резолвом через кэш наград).
+
+При резолве без `demandId` сервис листает demands, ищет открытый матч по зрителю и награде и берёт самый свежий (`created_at`, затем больший `id`).
+
+После успеха в аргумент `demandId` записывается использованный id.
+
+Типичная цепочка: триггер MiniChat Reward → **Reject Reward Demand** (или Accept) с `%userId%` и `%rewardId%`.
+
 ### \[VKVideoLive] Off Reward
 
 Экшен позволяет отключить любую награду канала.  
