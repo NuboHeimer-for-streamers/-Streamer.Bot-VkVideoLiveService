@@ -6,7 +6,7 @@
 ///   Help:         https://vk.com/topic-236253647_57236856
 ///----------------------------------------------------------------------------
 
-///   Version:      5.0.0_dev.3
+///   Version:      5.0.0_dev.5
 using System;
 using System.Net;
 using System.Net.Http;
@@ -338,6 +338,287 @@ public class CPHInline
             cph.LogWarn("[VKVideoLive reward activate] Ошибка при активации награды по имени, " + e.Message);
             return false;
         }
+    }
+
+    public bool GetRewardDemands()
+    {
+        return GetRewardDemandsInternal(CPH);
+    }
+
+    private bool GetRewardDemandsInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out string channelName) || string.IsNullOrWhiteSpace(channelName))
+        {
+            cph.LogWarn("[VKVideoLive reward demands] Значение channel_name пустое или не передано.");
+            return false;
+        }
+
+        long limit = 200;
+        if (cph.TryGetArg("limit", out long limitArg) && limitArg > 0)
+            limit = Math.Min(limitArg, 200);
+
+        long offset = 0;
+        if (cph.TryGetArg("offset", out long offsetArg) && offsetArg >= 0)
+            offset = offsetArg;
+
+        try
+        {
+            var authState = EnsureValidAuth(cph);
+            if (authState == null)
+                return false;
+
+            var page = _vkVideoLiveApiService.GetRewardDemands(
+                channelName,
+                authState.AccessToken,
+                limit,
+                offset);
+
+            var demands = page?.Demands ?? new List<VKVideoLiveApiService.ChannelPointDemand>();
+            ExportDemandListArguments(cph, demands);
+            cph.SetArgument("demandsIsLast", page?.IsLast ?? true);
+            cph.SetArgument("demandsOffset", page?.Offset ?? offset);
+
+            cph.LogInfo(
+                "[VKVideoLive reward demands] Канал: '"
+                + channelName
+                + "', получено запросов: "
+                + demands.Count
+                + ".");
+            return true;
+        }
+        catch (Exception e)
+        {
+            cph.LogWarn("[VKVideoLive reward demands] Ошибка при получении списка запросов наград, " + e.Message);
+            return false;
+        }
+    }
+
+    public bool RejectRewardDemand()
+    {
+        return ProcessRewardDemandStatusInternal(CPH, accept: false);
+    }
+
+    public bool AcceptRewardDemand()
+    {
+        return ProcessRewardDemandStatusInternal(CPH, accept: true);
+    }
+
+    private bool ProcessRewardDemandStatusInternal(IInlineInvokeProxy cph, bool accept)
+    {
+        string op = accept ? "accept" : "reject";
+
+        if (!cph.TryGetArg("channel_name", out string channelName) || string.IsNullOrWhiteSpace(channelName))
+        {
+            cph.LogWarn("[VKVideoLive reward demand " + op + "] Значение channel_name пустое или не передано.");
+            return false;
+        }
+
+        try
+        {
+            var authState = EnsureValidAuth(cph);
+            if (authState == null)
+                return false;
+
+            if (!TryResolveDemandId(cph, channelName, authState.AccessToken, out long demandId))
+                return false;
+
+            if (accept)
+                _vkVideoLiveApiService.AcceptRewardDemand(channelName, demandId, authState.AccessToken);
+            else
+                _vkVideoLiveApiService.RejectRewardDemand(channelName, demandId, authState.AccessToken);
+
+            cph.SetArgument("demandId", demandId);
+            cph.LogInfo(
+                "[VKVideoLive reward demand " + op + "] Канал: '" + channelName + "', demandId: " + demandId + ".");
+            return true;
+        }
+        catch (Exception e)
+        {
+            cph.LogWarn("[VKVideoLive reward demand " + op + "] Ошибка: " + e.Message);
+            return false;
+        }
+    }
+
+    private bool TryResolveDemandId(
+        IInlineInvokeProxy cph,
+        string channelName,
+        string accessToken,
+        out long demandId)
+    {
+        demandId = 0;
+
+        if (TryGetDemandIdArg(cph, out demandId))
+            return true;
+
+        if (!TryGetViewerUserIdArg(cph, out long userId))
+        {
+            cph.LogWarn(
+                "[VKVideoLive reward demand] Нужен demandId либо userId + rewardId (или rewardName).");
+            return false;
+        }
+
+        string rewardId;
+        if (!TryGetRewardIdArg(cph, out rewardId))
+        {
+            if (!cph.TryGetArg("rewardName", out string rewardName) || string.IsNullOrWhiteSpace(rewardName))
+            {
+                cph.LogWarn("[VKVideoLive reward demand] Без demandId нужны rewardId (или rewardName) и userId.");
+                return false;
+            }
+
+            rewardId = ResolveRewardIdByName(cph, channelName, rewardName, accessToken);
+            if (string.IsNullOrEmpty(rewardId))
+            {
+                cph.LogWarn("[VKVideoLive reward demand] Награда \"" + rewardName + "\" не найдена.");
+                return false;
+            }
+        }
+
+        var matches = FindOpenDemands(cph, channelName, accessToken, userId, rewardId);
+        if (matches.Count == 0)
+        {
+            cph.LogWarn(
+                "[VKVideoLive reward demand] Открытый demand не найден (userId="
+                + userId
+                + ", rewardId="
+                + rewardId
+                + ").");
+            return false;
+        }
+
+        demandId = matches.OrderByDescending(d => d.CreatedAt).ThenByDescending(d => d.Id).First().Id;
+        return true;
+    }
+
+    private List<VKVideoLiveApiService.ChannelPointDemand> FindOpenDemands(
+        IInlineInvokeProxy cph,
+        string channelName,
+        string accessToken,
+        long userId,
+        string rewardId)
+    {
+        var matches = new List<VKVideoLiveApiService.ChannelPointDemand>();
+        long offset = 0;
+        const long pageSize = 200;
+        const int maxPages = 5;
+
+        for (int pageIndex = 0; pageIndex < maxPages; pageIndex++)
+        {
+            var page = _vkVideoLiveApiService.GetRewardDemands(channelName, accessToken, pageSize, offset);
+            var demands = page?.Demands ?? new List<VKVideoLiveApiService.ChannelPointDemand>();
+
+            foreach (var demand in demands)
+            {
+                if (demand == null || demand.Id <= 0)
+                    continue;
+                if (demand.User?.Id != userId)
+                    continue;
+                if (!string.Equals(demand.Reward?.Id, rewardId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (IsClosedDemandStatus(demand.Status))
+                    continue;
+
+                matches.Add(demand);
+            }
+
+            if (matches.Count > 0)
+                break;
+
+            if (page == null || page.IsLast || demands.Count == 0 || demands.Count < pageSize)
+                break;
+
+            long nextOffset = offset + demands.Count;
+            if (nextOffset <= offset)
+                break;
+
+            if (pageIndex == maxPages - 1)
+            {
+                cph.LogWarn(
+                    "[VKVideoLive reward demand] Достигнут лимит страниц при поиске demand ("
+                    + maxPages
+                    + " x "
+                    + pageSize
+                    + ").");
+                break;
+            }
+
+            offset = nextOffset;
+        }
+
+        return matches;
+    }
+
+    private static bool IsClosedDemandStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            return false;
+
+        switch (status.Trim().ToLowerInvariant())
+        {
+            case "accepted":
+            case "rejected":
+            case "canceled":
+            case "cancelled":
+            case "done":
+            case "fulfilled":
+            case "closed":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static void ExportDemandListArguments(
+        IInlineInvokeProxy cph,
+        List<VKVideoLiveApiService.ChannelPointDemand> demands)
+    {
+        var demandIds = new List<long>();
+        var demandRewardIds = new List<string>();
+        var demandUserIds = new List<long>();
+        var demandUserNicks = new List<string>();
+        var demandStatuses = new List<string>();
+
+        foreach (var demand in demands)
+        {
+            if (demand == null)
+                continue;
+
+            demandIds.Add(demand.Id);
+            demandRewardIds.Add(demand.Reward?.Id ?? string.Empty);
+            demandUserIds.Add(demand.User?.Id ?? 0);
+            demandUserNicks.Add(demand.User?.Nick ?? string.Empty);
+            demandStatuses.Add(demand.Status ?? string.Empty);
+        }
+
+        cph.SetArgument("demandIds", demandIds);
+        cph.SetArgument("demandRewardIds", demandRewardIds);
+        cph.SetArgument("demandUserIds", demandUserIds);
+        cph.SetArgument("demandUserNicks", demandUserNicks);
+        cph.SetArgument("demandStatuses", demandStatuses);
+        cph.SetArgument("demandsCount", demandIds.Count);
+    }
+
+    private static bool TryGetDemandIdArg(IInlineInvokeProxy cph, out long demandId)
+    {
+        if (cph.TryGetArg("demandId", out demandId) && demandId > 0)
+            return true;
+        if (cph.TryGetArg("demand_id", out demandId) && demandId > 0)
+            return true;
+
+        demandId = 0;
+        return false;
+    }
+
+    private static bool TryGetRewardIdArg(IInlineInvokeProxy cph, out string rewardId)
+    {
+        foreach (string name in new[] { "rewardId", "reward_id", "minichat.Data.RewardID" })
+        {
+            if (cph.TryGetArg(name, out rewardId) && !string.IsNullOrWhiteSpace(rewardId))
+                return true;
+        }
+
+        rewardId = null;
+        return false;
     }
 
     public bool GetViewerInfo()
@@ -1104,6 +1385,9 @@ public class VKVideoLiveApiService
     private const string EndpointRewardEnable = "/channel_point/reward/enable";
     private const string EndpointRewardDisable = "/channel_point/reward/disable";
     private const string EndpointRewardActivate = "/channel_point/reward/activate";
+    private const string EndpointRewardDemands = "/channel_point/reward/demands";
+    private const string EndpointRewardDemandReject = "/channel_point/reward/demand/reject";
+    private const string EndpointRewardDemandAccept = "/channel_point/reward/demand/accept";
 
     public VKVideoLiveApiService(HttpClient client)
     {
@@ -1264,6 +1548,93 @@ public class VKVideoLiveApiService
         }
     }
 
+    public ChannelPointDemandsPage GetRewardDemands(
+        string channelUrl,
+        string token,
+        long limit,
+        long offset)
+    {
+        string url = ServiceOfficialApiHost
+                     + EndpointRewardDemands
+                     + "?channel_url=" + Uri.EscapeDataString(channelUrl)
+                     + "&limit=" + limit
+                     + "&offset=" + offset;
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            var root = JsonConvert.DeserializeObject<ChannelPointDemandsRootResponse>(responseBody);
+            return new ChannelPointDemandsPage
+            {
+                Demands = root?.Data?.Demands ?? new List<ChannelPointDemand>(),
+                IsLast = root?.Extra?.IsLast ?? true,
+                Offset = root?.Extra?.Offset ?? offset
+            };
+        }
+        catch (HttpRequestException e)
+        {
+            throw new InvalidOperationException(
+                "[VKVideoLive points] Error fetching reward demands via API: " + e.Message,
+                e);
+        }
+    }
+
+    public void RejectRewardDemand(string channelUrl, long demandId, string token)
+    {
+        PostRewardDemandStatus(channelUrl, demandId, token, EndpointRewardDemandReject, "rejecting");
+    }
+
+    public void AcceptRewardDemand(string channelUrl, long demandId, string token)
+    {
+        PostRewardDemandStatus(channelUrl, demandId, token, EndpointRewardDemandAccept, "accepting");
+    }
+
+    private void PostRewardDemandStatus(
+        string channelUrl,
+        long demandId,
+        string token,
+        string endpoint,
+        string actionLabel)
+    {
+        string url = ServiceOfficialApiHost
+                     + endpoint
+                     + "?channel_url=" + Uri.EscapeDataString(channelUrl);
+
+        var body = new
+        {
+            demands = new[]
+            {
+                new { id = demandId }
+            }
+        };
+
+        string json = JsonConvert.SerializeObject(body);
+
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = Client.PostAsync(url, content).GetAwaiter().GetResult();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException(
+                    "[VKVideoLive points] Error " + actionLabel + " reward demand via API. "
+                    + "StatusCode: " + (int)response.StatusCode + " (" + response.StatusCode + "), Body: "
+                    + responseBody);
+            }
+        }
+        catch (HttpRequestException e)
+        {
+            throw new InvalidOperationException(
+                "[VKVideoLive points] Error " + actionLabel + " reward demand via API: " + e.Message,
+                e);
+        }
+    }
+
     public class ChannelInfoRootResponse
     {
         [JsonProperty("data")]
@@ -1340,6 +1711,76 @@ public class VKVideoLiveApiService
 
         [JsonProperty("is_disabled")]
         public bool IsDisabled { get; set; }
+    }
+
+    public class ChannelPointDemandsRootResponse
+    {
+        [JsonProperty("data")]
+        public ChannelPointDemandsData Data { get; set; }
+
+        [JsonProperty("extra")]
+        public ChannelPointDemandsExtra Extra { get; set; }
+    }
+
+    public class ChannelPointDemandsData
+    {
+        [JsonProperty("demands")]
+        public List<ChannelPointDemand> Demands { get; set; } = new List<ChannelPointDemand>();
+    }
+
+    public class ChannelPointDemandsExtra
+    {
+        [JsonProperty("is_last")]
+        public bool IsLast { get; set; }
+
+        [JsonProperty("offset")]
+        public long Offset { get; set; }
+    }
+
+    public class ChannelPointDemandsPage
+    {
+        public List<ChannelPointDemand> Demands { get; set; } = new List<ChannelPointDemand>();
+        public bool IsLast { get; set; }
+        public long Offset { get; set; }
+    }
+
+    public class ChannelPointDemand
+    {
+        [JsonProperty("created_at")]
+        public long CreatedAt { get; set; }
+
+        [JsonProperty("id")]
+        public long Id { get; set; }
+
+        [JsonProperty("reward")]
+        public ChannelPointDemandReward Reward { get; set; }
+
+        [JsonProperty("status")]
+        public string Status { get; set; }
+
+        [JsonProperty("user")]
+        public ChannelPointDemandUser User { get; set; }
+    }
+
+    public class ChannelPointDemandReward
+    {
+        [JsonProperty("id")]
+        public string Id { get; set; }
+    }
+
+    public class ChannelPointDemandUser
+    {
+        [JsonProperty("avatar_url")]
+        public string AvatarUrl { get; set; }
+
+        [JsonProperty("id")]
+        public long Id { get; set; }
+
+        [JsonProperty("nick")]
+        public string Nick { get; set; }
+
+        [JsonProperty("nick_color")]
+        public int NickColor { get; set; }
     }
 }
 
