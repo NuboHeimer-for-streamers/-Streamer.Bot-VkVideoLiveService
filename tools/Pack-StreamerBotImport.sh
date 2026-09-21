@@ -45,7 +45,7 @@ MAGIC = b"SBAE"
 DEFAULT_OUTPUT_DIR = Path(
     "/mnt/d/Projects/NuboHeimer/Output/Code/Streamer.bot/VkLiveService"
 )
-DEFAULT_TEMPLATE = "VkLiveService_5.0.0_dev.3.txt"
+DEFAULT_TEMPLATE = "VkLiveService_5.0.0.txt"
 DEFAULT_IMPORT_NAME = "VkVideoLive Service"
 DEFAULT_CODE_BLOCK = "VKVideoLive Method Collection"
 DEFAULT_SOURCE_FILE = "VKVideoLiveService.cs"

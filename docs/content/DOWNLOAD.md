@@ -7,89 +7,28 @@ slug: "download"
 url: "download/"
 ---
 
-**Последняя версия:** 5.0.0_dev.5 (2026-09-09) — см. раздел ниже.
+**Последняя версия:** 5.0.0 (2026-09-21) — см. раздел ниже.
 
 После скачивания следуйте [инструкции по установке]({{< relref "INSTALLATION.md" >}}).
 
 ---
 
-### Версия 5.0.0_dev.5 (Dev)
+### Версия 5.0.0 (Public)
 
-**Дата:** 2026-09-09  
+**Дата:** 2026-09-21  
 {{< cards cols="1" >}}
-  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.5.txt" title="Скачать VkLiveService_5.0.0_dev.5.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
-{{< /cards >}}
-
-**Основные изменения:**
-
-- Резолв `demandId`: лимит 5 страниц API и остановка на первой странице с открытым матчем.
-- Скрипт сборки import-файла: `tools/Pack-StreamerBotImport.sh` (WSL).
-
-Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev5--2026-09-09).
-
----
-
-### Версия 5.0.0_dev.4 (Dev)
-
-**Дата:** 2026-09-09  
-{{< cards cols="1" >}}
-  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.4.txt" title="Скачать VkLiveService_5.0.0_dev.4.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
-{{< /cards >}}
-
-**Основные изменения:**
-
-- `GetRewardDemands` — список запросов наград зрителей.
-- `RejectRewardDemand` / `AcceptRewardDemand` — отклонение и принятие demand (`demandId` или MiniChat `userId` + `rewardId`).
-
-Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev4--2026-09-09).
-
----
-
-### Версия 5.0.0_dev.3 (Dev)
-
-**Дата:** 2026-08-25  
-{{< cards cols="1" >}}
-  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.3.txt" title="Скачать VkLiveService_5.0.0_dev.3.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
-{{< /cards >}}
-
-**Основные изменения:**
-
-- Метод `GetViewerInfo` — данные зрителя через официальный `GET /chat/member`.
-- Без неофициального manage `v8` (токен приложения не подходит).
-
-Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev3--2026-08-25).
-
----
-
-### Версия 5.0.0_dev.2 (Dev)
-
-**Дата:** 2026-08-25  
-{{< cards cols="1" >}}
-  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.2.txt" title="Скачать VkLiveService_5.0.0_dev.2.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
-{{< /cards >}}
-
-**Основные изменения:**
-
-- Метод `GetViewer` — детальные данные зрителя по `userId` (`GET /chat/member`).
-
-Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev2--2026-08-25).
-
----
-
-### Версия 5.0.0_dev.1 (Dev)
-
-**Дата:** 2026-08-25  
-{{< cards cols="1" >}}
-  {{< card link="/files/VkLiveService/VkLiveService_5.0.0_dev.1.txt" title="Скачать VkLiveService_5.0.0_dev.1.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Dev" tagColor="orange" tagBorder=false >}}
+  {{< card link="/files/VkLiveService/VkLiveService_5.0.0.txt" title="Скачать VkLiveService_5.0.0.txt" subtitle="Файл импорта Streamer.bot" icon="download" tag="Public" tagColor="green" tagBorder=false >}}
 {{< /cards >}}
 
 **Основные изменения:**
 
 - Breaking: приход/уход зрителей через кастомные триггеры вместо MiniChat `CreateCustomEvent`.
 - Триггеры `Viewer First Today` / `Viewer Joined` / `Viewer Left`.
-- Скрипт `tools/Pack-StreamerBotImport.ps1` для сборки import-файла.
+- `GetViewerInfo` — данные зрителя через официальный `GET /chat/member`.
+- `GetRewardDemands` / `RejectRewardDemand` / `AcceptRewardDemand` и резолв `demandId` из MiniChat.
+- Скрипт сборки import-файла: `tools/Pack-StreamerBotImport.sh` (WSL).
 
-Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500_dev1--2026-08-25).
+Полный список изменений см. в [`CHANGELOG.md`](https://github.com/NuboHeimer-for-streamers/-Streamer.Bot-VkVideoLiveService/blob/dev/CHANGELOG.md#500--2026-09-21).
 
 ---
 

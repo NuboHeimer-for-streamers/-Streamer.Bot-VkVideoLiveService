@@ -6,7 +6,7 @@
 ///   Help:         https://vk.com/topic-236253647_57236856
 ///----------------------------------------------------------------------------
 
-///   Version:      5.0.0_dev.5
+///   Version:      5.0.0
 using System;
 using System.Net;
 using System.Net.Http;

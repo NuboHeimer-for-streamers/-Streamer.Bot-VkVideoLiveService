@@ -1,38 +1,15 @@
 ## Changelog
 
-### 5.0.0_dev.5 — 2026-09-09
-
-- **Изменено**
-  - Резолв `demandId` по `userId` + reward: максимум 5 страниц API и остановка на первой странице с открытым матчем (страховка от бесконечной пагинации).
-  - Скрипт сборки import-файла: `tools/Pack-StreamerBotImport.sh` (WSL) вместо `tools/Pack-StreamerBotImport.ps1`.
-  - Пакер при сборке добавляет недостающие action’ы `Get Reward Demands` / `Reject Reward Demand` / `Accept Reward Demand`.
-
-### 5.0.0_dev.4 — 2026-09-09
-
-- **Добавлено**
-  - `GetRewardDemands` — список запросов наград (`GET /channel_point/reward/demands`).
-  - `RejectRewardDemand` / `AcceptRewardDemand` — отклонение и принятие demand (`…/demand/reject|accept`).
-  - Резолв `demandId` из MiniChat: `userId` + `rewardId` (или `rewardName`), либо явный `demandId`. При нескольких открытых матчах берётся самый свежий.
-
-### 5.0.0_dev.3 — 2026-08-25
-
-- **Добавлено**
-  - Метод `GetViewerInfo` — детальные данные зрителя через официальный `GET /chat/member` (`channel_name` + `userId` / `minichat.Data.UserID`).
-- **Изменено**
-  - Неофициальный manage `v8` для зрителя не используется (OAuth приложения даёт 401).
-
-### 5.0.0_dev.2 — 2026-08-25
-
-- **Добавлено**
-  - Черновик метода получения данных зрителя (позже: `GetViewerInfo`, только official API).
-
-### 5.0.0_dev.1 — 2026-08-25
+### 5.0.0 — 2026-09-21
 
 - **Изменено** (breaking)
   - `GetInOutViewers` и `GetNewViewers` больше не вызывают MiniChat `CreateCustomEvent`. Вместо этого срабатывают кастомные триггеры Streamer.bot; отображение в MiniChat собирается отдельным action на триггере.
+
 - **Добавлено**
   - Триггеры `VKVideoLive_ViewerFirstToday`, `VKVideoLive_ViewerJoined`, `VKVideoLive_ViewerLeft` (`Custom` → `VK Video Live`).
-  - Скрипт сборки import-файла: `tools/Pack-StreamerBotImport.ps1`.
+  - Метод `GetViewerInfo` — детальные данные зрителя.
+  - `GetRewardDemands` — список запросов наград.
+  - `RejectRewardDemand` / `AcceptRewardDemand` — отклонение и принятие.
 
 ### 4.1.0 -- 2026-07-06
 
