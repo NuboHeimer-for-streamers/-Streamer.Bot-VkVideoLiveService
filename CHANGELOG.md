@@ -1,5 +1,16 @@
 ## Changelog
 
+### 5.0.0 — 2026-09-21
+
+- **Изменено** (breaking)
+  - `GetInOutViewers` и `GetNewViewers` больше не вызывают MiniChat `CreateCustomEvent`. Вместо этого срабатывают кастомные триггеры Streamer.bot; отображение в MiniChat собирается отдельным action на триггере.
+
+- **Добавлено**
+  - Триггеры `VKVideoLive_ViewerFirstToday`, `VKVideoLive_ViewerJoined`, `VKVideoLive_ViewerLeft` (`Custom` → `VK Video Live`).
+  - Метод `GetViewerInfo` — детальные данные зрителя.
+  - `GetRewardDemands` — список запросов наград.
+  - `RejectRewardDemand` / `AcceptRewardDemand` — отклонение и принятие.
+
 ### 4.1.0 -- 2026-07-06
 
 - **Добавлено**

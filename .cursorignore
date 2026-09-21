@@ -1,0 +1,12 @@
+# Generated / local indexes
+/.repowise/
+/docs/public/
+/docs/resources/
+/docs/.hugo_build.lock
+
+# Scratch
+.tmp-*
+*.tmp
+
+# Third-party Hugo themes (submodules)
+/docs/themes/

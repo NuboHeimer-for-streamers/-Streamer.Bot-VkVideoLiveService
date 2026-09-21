@@ -1,6 +1,16 @@
 /Examples
 .cursor/
 
+# Scratch / temp
+.tmp-*
+*.tmp
+
+# Repowise / local editor MCP (do not commit)
+/.repowise/
+/.claude/
+/.mcp.json
+/.vscode/mcp.json
+
 # Hugo (docs site)
 /docs/public/
 /docs/resources/

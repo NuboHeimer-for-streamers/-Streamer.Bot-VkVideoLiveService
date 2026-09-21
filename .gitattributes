@@ -1,0 +1,2 @@
+# Normalize text to LF in the repo (Windows + WSL)
+* text=auto eol=lf

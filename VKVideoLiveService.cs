@@ -6,13 +6,12 @@
 ///   Help:         https://vk.com/topic-236253647_57236856
 ///----------------------------------------------------------------------------
 
-///   Version:      4.1.0
+///   Version:      5.0.0
 using System;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Collections.Generic;
-using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
@@ -40,6 +39,10 @@ public class CPHInline
     private const string VkLiveRewardsCacheKey = "VkLiveRewardsCache";
     private const string VkLiveMiniChatServiceKey = "VKVideoLive";
 
+    private const string VkLiveViewerFirstTodayEvent = "VKVideoLive_ViewerFirstToday";
+    private const string VkLiveViewerJoinedEvent = "VKVideoLive_ViewerJoined";
+    private const string VkLiveViewerLeftEvent = "VKVideoLive_ViewerLeft";
+
     private readonly HttpClient _client = new();
     private VKVideoLiveApiService _vkVideoLiveApiService;
     private VkOAuthService _vkAuthService;
@@ -53,7 +56,11 @@ public class CPHInline
         if (CPH.GetGlobalVar<HashSet<string>>(VkLivePreviousPresentViewersKey, true) == null)
             CPH.SetGlobalVar(VkLivePreviousPresentViewersKey, new HashSet<string>(), true);
 
-        CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", new[] { "VK Video Live" });
+        var vkLiveCategory = new[] { "VK Video Live" };
+        CPH.RegisterCustomTrigger("Present Viewers (VkLive)", "VKVideoLive_PresentViewers", vkLiveCategory);
+        CPH.RegisterCustomTrigger("Viewer First Today (VkLive)", VkLiveViewerFirstTodayEvent, vkLiveCategory);
+        CPH.RegisterCustomTrigger("Viewer Joined (VkLive)", VkLiveViewerJoinedEvent, vkLiveCategory);
+        CPH.RegisterCustomTrigger("Viewer Left (VkLive)", VkLiveViewerLeftEvent, vkLiveCategory);
     }
 
     public bool ClearTodaysViewers()
@@ -333,6 +340,625 @@ public class CPHInline
         }
     }
 
+    public bool GetRewardDemands()
+    {
+        return GetRewardDemandsInternal(CPH);
+    }
+
+    private bool GetRewardDemandsInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out string channelName) || string.IsNullOrWhiteSpace(channelName))
+        {
+            cph.LogWarn("[VKVideoLive reward demands] Значение channel_name пустое или не передано.");
+            return false;
+        }
+
+        long limit = 200;
+        if (cph.TryGetArg("limit", out long limitArg) && limitArg > 0)
+            limit = Math.Min(limitArg, 200);
+
+        long offset = 0;
+        if (cph.TryGetArg("offset", out long offsetArg) && offsetArg >= 0)
+            offset = offsetArg;
+
+        try
+        {
+            var authState = EnsureValidAuth(cph);
+            if (authState == null)
+                return false;
+
+            var page = _vkVideoLiveApiService.GetRewardDemands(
+                channelName,
+                authState.AccessToken,
+                limit,
+                offset);
+
+            var demands = page?.Demands ?? new List<VKVideoLiveApiService.ChannelPointDemand>();
+            ExportDemandListArguments(cph, demands);
+            cph.SetArgument("demandsIsLast", page?.IsLast ?? true);
+            cph.SetArgument("demandsOffset", page?.Offset ?? offset);
+
+            cph.LogInfo(
+                "[VKVideoLive reward demands] Канал: '"
+                + channelName
+                + "', получено запросов: "
+                + demands.Count
+                + ".");
+            return true;
+        }
+        catch (Exception e)
+        {
+            cph.LogWarn("[VKVideoLive reward demands] Ошибка при получении списка запросов наград, " + e.Message);
+            return false;
+        }
+    }
+
+    public bool RejectRewardDemand()
+    {
+        return ProcessRewardDemandStatusInternal(CPH, accept: false);
+    }
+
+    public bool AcceptRewardDemand()
+    {
+        return ProcessRewardDemandStatusInternal(CPH, accept: true);
+    }
+
+    private bool ProcessRewardDemandStatusInternal(IInlineInvokeProxy cph, bool accept)
+    {
+        string op = accept ? "accept" : "reject";
+
+        if (!cph.TryGetArg("channel_name", out string channelName) || string.IsNullOrWhiteSpace(channelName))
+        {
+            cph.LogWarn("[VKVideoLive reward demand " + op + "] Значение channel_name пустое или не передано.");
+            return false;
+        }
+
+        try
+        {
+            var authState = EnsureValidAuth(cph);
+            if (authState == null)
+                return false;
+
+            if (!TryResolveDemandId(cph, channelName, authState.AccessToken, out long demandId))
+                return false;
+
+            if (accept)
+                _vkVideoLiveApiService.AcceptRewardDemand(channelName, demandId, authState.AccessToken);
+            else
+                _vkVideoLiveApiService.RejectRewardDemand(channelName, demandId, authState.AccessToken);
+
+            cph.SetArgument("demandId", demandId);
+            cph.LogInfo(
+                "[VKVideoLive reward demand " + op + "] Канал: '" + channelName + "', demandId: " + demandId + ".");
+            return true;
+        }
+        catch (Exception e)
+        {
+            cph.LogWarn("[VKVideoLive reward demand " + op + "] Ошибка: " + e.Message);
+            return false;
+        }
+    }
+
+    private bool TryResolveDemandId(
+        IInlineInvokeProxy cph,
+        string channelName,
+        string accessToken,
+        out long demandId)
+    {
+        demandId = 0;
+
+        if (TryGetDemandIdArg(cph, out demandId))
+            return true;
+
+        if (!TryGetViewerUserIdArg(cph, out long userId))
+        {
+            cph.LogWarn(
+                "[VKVideoLive reward demand] Нужен demandId либо userId + rewardId (или rewardName).");
+            return false;
+        }
+
+        string rewardId;
+        if (!TryGetRewardIdArg(cph, out rewardId))
+        {
+            if (!cph.TryGetArg("rewardName", out string rewardName) || string.IsNullOrWhiteSpace(rewardName))
+            {
+                cph.LogWarn("[VKVideoLive reward demand] Без demandId нужны rewardId (или rewardName) и userId.");
+                return false;
+            }
+
+            rewardId = ResolveRewardIdByName(cph, channelName, rewardName, accessToken);
+            if (string.IsNullOrEmpty(rewardId))
+            {
+                cph.LogWarn("[VKVideoLive reward demand] Награда \"" + rewardName + "\" не найдена.");
+                return false;
+            }
+        }
+
+        var matches = FindOpenDemands(cph, channelName, accessToken, userId, rewardId);
+        if (matches.Count == 0)
+        {
+            cph.LogWarn(
+                "[VKVideoLive reward demand] Открытый demand не найден (userId="
+                + userId
+                + ", rewardId="
+                + rewardId
+                + ").");
+            return false;
+        }
+
+        demandId = matches.OrderByDescending(d => d.CreatedAt).ThenByDescending(d => d.Id).First().Id;
+        return true;
+    }
+
+    private List<VKVideoLiveApiService.ChannelPointDemand> FindOpenDemands(
+        IInlineInvokeProxy cph,
+        string channelName,
+        string accessToken,
+        long userId,
+        string rewardId)
+    {
+        var matches = new List<VKVideoLiveApiService.ChannelPointDemand>();
+        long offset = 0;
+        const long pageSize = 200;
+        const int maxPages = 5;
+
+        for (int pageIndex = 0; pageIndex < maxPages; pageIndex++)
+        {
+            var page = _vkVideoLiveApiService.GetRewardDemands(channelName, accessToken, pageSize, offset);
+            var demands = page?.Demands ?? new List<VKVideoLiveApiService.ChannelPointDemand>();
+
+            foreach (var demand in demands)
+            {
+                if (demand == null || demand.Id <= 0)
+                    continue;
+                if (demand.User?.Id != userId)
+                    continue;
+                if (!string.Equals(demand.Reward?.Id, rewardId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (IsClosedDemandStatus(demand.Status))
+                    continue;
+
+                matches.Add(demand);
+            }
+
+            if (matches.Count > 0)
+                break;
+
+            if (page == null || page.IsLast || demands.Count == 0 || demands.Count < pageSize)
+                break;
+
+            long nextOffset = offset + demands.Count;
+            if (nextOffset <= offset)
+                break;
+
+            if (pageIndex == maxPages - 1)
+            {
+                cph.LogWarn(
+                    "[VKVideoLive reward demand] Достигнут лимит страниц при поиске demand ("
+                    + maxPages
+                    + " x "
+                    + pageSize
+                    + ").");
+                break;
+            }
+
+            offset = nextOffset;
+        }
+
+        return matches;
+    }
+
+    private static bool IsClosedDemandStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            return false;
+
+        switch (status.Trim().ToLowerInvariant())
+        {
+            case "accepted":
+            case "rejected":
+            case "canceled":
+            case "cancelled":
+            case "done":
+            case "fulfilled":
+            case "closed":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static void ExportDemandListArguments(
+        IInlineInvokeProxy cph,
+        List<VKVideoLiveApiService.ChannelPointDemand> demands)
+    {
+        var demandIds = new List<long>();
+        var demandRewardIds = new List<string>();
+        var demandUserIds = new List<long>();
+        var demandUserNicks = new List<string>();
+        var demandStatuses = new List<string>();
+
+        foreach (var demand in demands)
+        {
+            if (demand == null)
+                continue;
+
+            demandIds.Add(demand.Id);
+            demandRewardIds.Add(demand.Reward?.Id ?? string.Empty);
+            demandUserIds.Add(demand.User?.Id ?? 0);
+            demandUserNicks.Add(demand.User?.Nick ?? string.Empty);
+            demandStatuses.Add(demand.Status ?? string.Empty);
+        }
+
+        cph.SetArgument("demandIds", demandIds);
+        cph.SetArgument("demandRewardIds", demandRewardIds);
+        cph.SetArgument("demandUserIds", demandUserIds);
+        cph.SetArgument("demandUserNicks", demandUserNicks);
+        cph.SetArgument("demandStatuses", demandStatuses);
+        cph.SetArgument("demandsCount", demandIds.Count);
+    }
+
+    private static bool TryGetDemandIdArg(IInlineInvokeProxy cph, out long demandId)
+    {
+        if (cph.TryGetArg("demandId", out demandId) && demandId > 0)
+            return true;
+        if (cph.TryGetArg("demand_id", out demandId) && demandId > 0)
+            return true;
+
+        demandId = 0;
+        return false;
+    }
+
+    private static bool TryGetRewardIdArg(IInlineInvokeProxy cph, out string rewardId)
+    {
+        foreach (string name in new[] { "rewardId", "reward_id", "minichat.Data.RewardID" })
+        {
+            if (cph.TryGetArg(name, out rewardId) && !string.IsNullOrWhiteSpace(rewardId))
+                return true;
+        }
+
+        rewardId = null;
+        return false;
+    }
+
+    public bool GetViewerInfo()
+    {
+        return GetViewerInfoInternal(CPH);
+    }
+
+    private bool GetViewerInfoInternal(IInlineInvokeProxy cph)
+    {
+        if (!cph.TryGetArg("channel_name", out object channelNameObj) || channelNameObj == null)
+        {
+            cph.LogWarn("[VKVideoLive get viewer info] Missing required argument channel_name.");
+            return false;
+        }
+
+        string channelName = channelNameObj.ToString();
+
+        try
+        {
+            var authState = EnsureValidAuth(cph);
+            if (authState == null)
+                return false;
+
+            if (!TryResolveViewerUserId(cph, channelName, authState.AccessToken, out long userId))
+                return false;
+
+            string url = VKVideoLiveApiService.ServiceOfficialApiHost
+                         + "/chat/member?channel_url=" + Uri.EscapeDataString(channelName)
+                         + "&user_id=" + userId;
+
+            if (!TryGetJson(url, authState.AccessToken, out JObject root, out string error))
+            {
+                cph.LogWarn("[VKVideoLive get viewer info] /chat/member failed: " + error);
+                return false;
+            }
+
+            var data = AsObject(root["data"]);
+            var user = AsObject(data?["user"]);
+            var statistics = AsObject(data?["statistics"]);
+            var channel = AsObject(data?["channel"]);
+
+            string nick = user?["nick"]?.ToString() ?? string.Empty;
+            long id = userId;
+            if (!TryReadPositiveLong(user?["id"], out id))
+                id = userId;
+
+            bool isModerator = user?["is_moderator"]?.ToObject<bool>() ?? false;
+            bool isOwner = user?["is_owner"]?.ToObject<bool>() ?? false;
+
+            long registeredAt = 0;
+            if (TryReadPositiveLong(user?["registered_at"], out registeredAt))
+                cph.SetArgument("registeredAt", registeredAt);
+
+            long chatMessagesCount = 0;
+            TryReadNonNegativeLong(statistics?["chat_messages_count"], out chatMessagesCount);
+
+            long permanentBansCount = 0;
+            TryReadNonNegativeLong(statistics?["permanent_bans_count"], out permanentBansCount);
+
+            long temporaryBansCount = 0;
+            TryReadNonNegativeLong(statistics?["temporary_bans_count"], out temporaryBansCount);
+
+            long totalWatchedTime = 0;
+            TryReadNonNegativeLong(statistics?["total_watched_time"], out totalWatchedTime);
+
+            var roleNames = new List<string>();
+            if (user?["roles"] is JArray roles)
+            {
+                foreach (var role in roles)
+                {
+                    string roleName = role["name"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(roleName))
+                        roleNames.Add(roleName);
+                }
+            }
+
+            var badgeNames = new List<string>();
+            if (user?["badges"] is JArray badges)
+            {
+                foreach (var badge in badges)
+                {
+                    string badgeName = badge["name"]?.ToString();
+                    if (string.IsNullOrWhiteSpace(badgeName))
+                        badgeName = badge["achievement_name"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(badgeName))
+                        badgeNames.Add(badgeName);
+                }
+            }
+
+            cph.SetArgument("userName", nick);
+            cph.SetArgument("user", nick);
+            cph.SetArgument("userId", id);
+            cph.SetArgument("isModerator", isModerator);
+            cph.SetArgument("isOwner", isOwner);
+            cph.SetArgument("chatMessagesCount", chatMessagesCount);
+            cph.SetArgument("permanentBansCount", permanentBansCount);
+            cph.SetArgument("temporaryBansCount", temporaryBansCount);
+            cph.SetArgument("totalWatchedTime", totalWatchedTime);
+            cph.SetArgument("roleNames", roleNames);
+            cph.SetArgument("badgeNames", badgeNames);
+            cph.SetArgument("channelStatus", channel?["status"]?.ToString() ?? string.Empty);
+            cph.SetArgument("channelUrl", channel?["url"]?.ToString() ?? string.Empty);
+
+            cph.LogInfo("[VKVideoLive get viewer info] userId=" + id + ", nick='" + nick
+                        + "', messages=" + chatMessagesCount
+                        + ", watched=" + totalWatchedTime
+                        + ", registeredAt=" + registeredAt);
+            return true;
+        }
+        catch (Exception e)
+        {
+            cph.LogWarn("[VKVideoLive get viewer info] Error fetching viewer, " + e.Message);
+            return false;
+        }
+    }
+
+    private bool TryGetJson(string url, string accessToken, out JObject root, out string error)
+    {
+        root = null;
+        error = null;
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+            using HttpResponseMessage response = _client.SendAsync(request).GetAwaiter().GetResult();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            if (!response.IsSuccessStatusCode)
+            {
+                error = "HTTP " + (int)response.StatusCode + ": " + TruncateForLog(responseBody);
+                return false;
+            }
+
+            root = JObject.Parse(responseBody);
+            if (AsObject(root["data"]) == null)
+            {
+                error = "empty data";
+                root = null;
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            error = e.Message;
+            return false;
+        }
+    }
+
+    private static JObject AsObject(JToken token)
+    {
+        return token is JObject jo ? jo : null;
+    }
+
+    private static bool TryReadPositiveLong(JToken token, out long value)
+    {
+        value = 0;
+        return TryReadLong(token, out value, requirePositive: true);
+    }
+
+    private static bool TryReadNonNegativeLong(JToken token, out long value)
+    {
+        value = 0;
+        return TryReadLong(token, out value, requirePositive: false);
+    }
+
+    private static bool TryReadLong(JToken token, out long value, bool requirePositive)
+    {
+        value = 0;
+        if (token == null || token.Type == JTokenType.Null || token.Type == JTokenType.Undefined)
+            return false;
+
+        try
+        {
+            long parsed;
+            if (token.Type == JTokenType.Integer || token.Type == JTokenType.Float)
+            {
+                parsed = token.Value<long>();
+            }
+            else if (!long.TryParse(token.ToString(), out parsed))
+            {
+                return false;
+            }
+
+            if (parsed < 0)
+                return false;
+            if (requirePositive && parsed == 0)
+                return false;
+
+            value = parsed;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // Resolves user id from userId / user_id / id, or by nick via /chat/members (present list only).
+    private bool TryResolveViewerUserId(IInlineInvokeProxy cph, string channelName, string accessToken, out long userId)
+    {
+        if (TryGetViewerUserIdArg(cph, out userId))
+            return true;
+
+        string nick = null;
+        if (cph.TryGetArg("userName", out object userNameObj) && userNameObj != null)
+            nick = userNameObj.ToString();
+        else if (cph.TryGetArg("user", out object userObj) && userObj != null)
+            nick = userObj.ToString();
+
+        if (string.IsNullOrWhiteSpace(nick))
+        {
+            cph.LogWarn("[VKVideoLive get viewer] Missing userId (user_id / id / minichat.Data.UserID). Optionally pass userName/user to resolve from present viewers.");
+            return false;
+        }
+
+        if (!TryFindUserIdByNick(channelName, accessToken, nick.Trim(), out userId))
+        {
+            cph.LogWarn("[VKVideoLive get viewer] Could not resolve userId for nick '" + nick + "' in present viewers (max 200).");
+            return false;
+        }
+
+        cph.LogInfo("[VKVideoLive get viewer] Resolved nick '" + nick + "' → userId=" + userId);
+        return true;
+    }
+
+    private static bool TryGetViewerUserIdArg(IInlineInvokeProxy cph, out long userId)
+    {
+        userId = 0;
+        object userIdObj = null;
+        if (cph.TryGetArg("userId", out userIdObj) && userIdObj != null)
+        {
+            // ok
+        }
+        else if (cph.TryGetArg("user_id", out userIdObj) && userIdObj != null)
+        {
+            // ok
+        }
+        else if (cph.TryGetArg("id", out userIdObj) && userIdObj != null)
+        {
+            // ok — same key as GetViewers users[].id
+        }
+        else if (cph.TryGetArg("minichat.Data.UserID", out userIdObj) && userIdObj != null)
+        {
+            // ok — MiniChat chat / event payload
+        }
+        else
+        {
+            return false;
+        }
+
+        return TryCoerceToPositiveLong(userIdObj, out userId);
+    }
+
+    private static bool TryCoerceToPositiveLong(object value, out long userId)
+    {
+        userId = 0;
+        if (value == null)
+            return false;
+
+        switch (value)
+        {
+            case long l:
+                userId = l;
+                break;
+            case int i:
+                userId = i;
+                break;
+            case short s:
+                userId = s;
+                break;
+            case uint ui:
+                userId = ui;
+                break;
+            case ulong ul when ul <= long.MaxValue:
+                userId = (long)ul;
+                break;
+            case double d:
+                userId = (long)d;
+                break;
+            case float f:
+                userId = (long)f;
+                break;
+            case decimal m:
+                userId = (long)m;
+                break;
+            default:
+                if (!long.TryParse(value.ToString(), out userId))
+                    return false;
+                break;
+        }
+
+        return userId > 0;
+    }
+
+    private bool TryFindUserIdByNick(string channelName, string accessToken, string nick, out long userId)
+    {
+        userId = 0;
+        string url = VKVideoLiveApiService.ServiceOfficialApiHost
+                     + "/chat/members?channel_url=" + Uri.EscapeDataString(channelName)
+                     + "&limit=200";
+
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        using HttpResponseMessage response = _client.GetAsync(url).GetAwaiter().GetResult();
+        string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        if (!response.IsSuccessStatusCode)
+            return false;
+
+        var usersToken = JObject.Parse(responseBody)["data"]?["users"] as JArray;
+        if (usersToken == null)
+            return false;
+
+        foreach (var user in usersToken)
+        {
+            string userNick = user["nick"]?.ToString();
+            if (string.IsNullOrWhiteSpace(userNick))
+                continue;
+            if (!string.Equals(userNick, nick, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            long? id = user["id"]?.ToObject<long?>();
+            if (id.HasValue && id.Value > 0)
+            {
+                userId = id.Value;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string TruncateForLog(string text, int maxLen = 300)
+    {
+        if (string.IsNullOrEmpty(text))
+            return string.Empty;
+        text = text.Replace("\r", " ").Replace("\n", " ");
+        return text.Length <= maxLen ? text : text.Substring(0, maxLen) + "...";
+    }
+
     public bool GetViewers()
     {
         return GetViewersInternal(CPH);
@@ -556,7 +1182,7 @@ public class CPHInline
             {
                 if (!todaysViewers.Contains(name))
                 {
-                    CreateViewerEvent(cph, name, "Обнаружен(а) впервые на текущей трансляции.");
+                    TriggerViewerPresence(cph, name, VkLiveViewerFirstTodayEvent);
                     todaysViewers.Add(name);
                     newTodayNames.Add(name);
                 }
@@ -568,13 +1194,13 @@ public class CPHInline
                 if (newTodayNames.Contains(name))
                     continue;
                 if (!previousPresent.Contains(name))
-                    CreateViewerEvent(cph, name, "Обнаружен(а) в списке зрителей.");
+                    TriggerViewerPresence(cph, name, VkLiveViewerJoinedEvent);
             }
 
             foreach (var name in previousPresent)
             {
                 if (!currentNames.Contains(name))
-                    CreateViewerEvent(cph, name, "Пропал(а) из списка зрителей.");
+                    TriggerViewerPresence(cph, name, VkLiveViewerLeftEvent);
             }
 
             cph.SetGlobalVar(VkLivePreviousPresentViewersKey, new HashSet<string>(currentNamesForSaving), true);
@@ -587,13 +1213,11 @@ public class CPHInline
         }
     }
 
-    private void CreateViewerEvent(IInlineInvokeProxy cph, string displayName, string messageText)
+    private void TriggerViewerPresence(IInlineInvokeProxy cph, string displayName, string eventName)
     {
-        cph.SetArgument("service", "VKVideoLive");
-        cph.SetArgument("title", displayName);
-        cph.SetArgument("message", messageText);
-        cph.ExecuteMethod("MiniChat Method Collection", "CreateCustomEvent");
-        Thread.Sleep(200);
+        cph.SetArgument("userName", displayName);
+        cph.SetArgument("user", displayName);
+        cph.TriggerCodeEvent(eventName, true);
     }
 
     public bool GetNewViewers()
@@ -623,7 +1247,7 @@ public class CPHInline
 
                 todayViewers.Add(displayName);
                 cph.SetGlobalVar(VkLiveTodaysViewersKey, todayViewers, true);
-                CreateViewerEvent(cph, "Новый зритель", displayName);
+                TriggerViewerPresence(cph, displayName, VkLiveViewerFirstTodayEvent);
                 cph.LogInfo("Новый зритель: " + displayName);
             }
         }
@@ -761,6 +1385,9 @@ public class VKVideoLiveApiService
     private const string EndpointRewardEnable = "/channel_point/reward/enable";
     private const string EndpointRewardDisable = "/channel_point/reward/disable";
     private const string EndpointRewardActivate = "/channel_point/reward/activate";
+    private const string EndpointRewardDemands = "/channel_point/reward/demands";
+    private const string EndpointRewardDemandReject = "/channel_point/reward/demand/reject";
+    private const string EndpointRewardDemandAccept = "/channel_point/reward/demand/accept";
 
     public VKVideoLiveApiService(HttpClient client)
     {
@@ -921,6 +1548,93 @@ public class VKVideoLiveApiService
         }
     }
 
+    public ChannelPointDemandsPage GetRewardDemands(
+        string channelUrl,
+        string token,
+        long limit,
+        long offset)
+    {
+        string url = ServiceOfficialApiHost
+                     + EndpointRewardDemands
+                     + "?channel_url=" + Uri.EscapeDataString(channelUrl)
+                     + "&limit=" + limit
+                     + "&offset=" + offset;
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using HttpResponseMessage response = Client.GetAsync(url).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            var root = JsonConvert.DeserializeObject<ChannelPointDemandsRootResponse>(responseBody);
+            return new ChannelPointDemandsPage
+            {
+                Demands = root?.Data?.Demands ?? new List<ChannelPointDemand>(),
+                IsLast = root?.Extra?.IsLast ?? true,
+                Offset = root?.Extra?.Offset ?? offset
+            };
+        }
+        catch (HttpRequestException e)
+        {
+            throw new InvalidOperationException(
+                "[VKVideoLive points] Error fetching reward demands via API: " + e.Message,
+                e);
+        }
+    }
+
+    public void RejectRewardDemand(string channelUrl, long demandId, string token)
+    {
+        PostRewardDemandStatus(channelUrl, demandId, token, EndpointRewardDemandReject, "rejecting");
+    }
+
+    public void AcceptRewardDemand(string channelUrl, long demandId, string token)
+    {
+        PostRewardDemandStatus(channelUrl, demandId, token, EndpointRewardDemandAccept, "accepting");
+    }
+
+    private void PostRewardDemandStatus(
+        string channelUrl,
+        long demandId,
+        string token,
+        string endpoint,
+        string actionLabel)
+    {
+        string url = ServiceOfficialApiHost
+                     + endpoint
+                     + "?channel_url=" + Uri.EscapeDataString(channelUrl);
+
+        var body = new
+        {
+            demands = new[]
+            {
+                new { id = demandId }
+            }
+        };
+
+        string json = JsonConvert.SerializeObject(body);
+
+        try
+        {
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = Client.PostAsync(url, content).GetAwaiter().GetResult();
+            string responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException(
+                    "[VKVideoLive points] Error " + actionLabel + " reward demand via API. "
+                    + "StatusCode: " + (int)response.StatusCode + " (" + response.StatusCode + "), Body: "
+                    + responseBody);
+            }
+        }
+        catch (HttpRequestException e)
+        {
+            throw new InvalidOperationException(
+                "[VKVideoLive points] Error " + actionLabel + " reward demand via API: " + e.Message,
+                e);
+        }
+    }
+
     public class ChannelInfoRootResponse
     {
         [JsonProperty("data")]
@@ -997,6 +1711,76 @@ public class VKVideoLiveApiService
 
         [JsonProperty("is_disabled")]
         public bool IsDisabled { get; set; }
+    }
+
+    public class ChannelPointDemandsRootResponse
+    {
+        [JsonProperty("data")]
+        public ChannelPointDemandsData Data { get; set; }
+
+        [JsonProperty("extra")]
+        public ChannelPointDemandsExtra Extra { get; set; }
+    }
+
+    public class ChannelPointDemandsData
+    {
+        [JsonProperty("demands")]
+        public List<ChannelPointDemand> Demands { get; set; } = new List<ChannelPointDemand>();
+    }
+
+    public class ChannelPointDemandsExtra
+    {
+        [JsonProperty("is_last")]
+        public bool IsLast { get; set; }
+
+        [JsonProperty("offset")]
+        public long Offset { get; set; }
+    }
+
+    public class ChannelPointDemandsPage
+    {
+        public List<ChannelPointDemand> Demands { get; set; } = new List<ChannelPointDemand>();
+        public bool IsLast { get; set; }
+        public long Offset { get; set; }
+    }
+
+    public class ChannelPointDemand
+    {
+        [JsonProperty("created_at")]
+        public long CreatedAt { get; set; }
+
+        [JsonProperty("id")]
+        public long Id { get; set; }
+
+        [JsonProperty("reward")]
+        public ChannelPointDemandReward Reward { get; set; }
+
+        [JsonProperty("status")]
+        public string Status { get; set; }
+
+        [JsonProperty("user")]
+        public ChannelPointDemandUser User { get; set; }
+    }
+
+    public class ChannelPointDemandReward
+    {
+        [JsonProperty("id")]
+        public string Id { get; set; }
+    }
+
+    public class ChannelPointDemandUser
+    {
+        [JsonProperty("avatar_url")]
+        public string AvatarUrl { get; set; }
+
+        [JsonProperty("id")]
+        public long Id { get; set; }
+
+        [JsonProperty("nick")]
+        public string Nick { get; set; }
+
+        [JsonProperty("nick_color")]
+        public int NickColor { get; set; }
     }
 }
 

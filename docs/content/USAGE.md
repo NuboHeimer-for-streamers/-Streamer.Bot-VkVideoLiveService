@@ -9,7 +9,7 @@ url: "usage/"
 
 ## Disclaimer
 
-Создание приложения VK и авторизация в Streamer.bot описаны ниже и **не требуют** MiniChat. Интеграция MiniChat нужна только для тех экшенов, которые отправляют пользовательские события в MiniChat (см. соответствующие разделы).
+Создание приложения VK и авторизация в Streamer.bot описаны ниже и **не требуют** MiniChat. Приход/уход зрителей идут через кастомные триггеры Streamer.bot; MiniChat нужен только если вы сами повесите на эти триггеры (или на другие события) отправку в MiniChat.
 
 ## Создание приложения VK
 
@@ -105,12 +105,12 @@ url: "usage/"
 
 ### \[VKVideoLive] AddFirstWordViewer
 
-Экшен добавляет зрителя, впервые за трансляцию написавшего в чат, в список зрителей `VkLiveTodaysViewers`. Это позволяет не отправлять событие в MiniChat для уже увиденных в чате зрителей. 
+Экшен добавляет зрителя, впервые за трансляцию написавшего в чат, в список зрителей `VkLiveTodaysViewers`. Это позволяет не срабатывать триггеру **Viewer First Today (VkLive)** для уже увиденных в чате зрителей.
 
 {{< img class="center" src="/images/usage/VkLive_Add_First_Words_Viewer.png" alt="Экшен Add First Word Viewer" >}}
 
 - Триггер: **Custom** -> **MiniChat** -> **VkVideoLive** -> **First Words**
-- Используйте, если не хотите видеть событие в MiniChat для зрителей, написавших сообщение в чат.
+- Используйте, если не хотите событие «первый раз за трансляцию» для зрителей, которые уже написали в чат.
 
 ### \[VKVideoLive] Code
 
@@ -121,23 +121,25 @@ url: "usage/"
 
 ### \[VKVideoLive] Get In Out Viewers
 
-Экшен отправляет в MiniChat пользовательское событие о пришедшем или ушедшем зрителе.
+Экшен сравнивает текущий список зрителей с предыдущим и вызывает кастомные триггеры прихода/ухода. В MiniChat сам ничего не отправляет — при необходимости повесьте на триггеры свой action (например MiniChat `CreateCustomEvent`).
 
 {{< img class="center" src="/images/usage/VkLive_Get_In_Out_Viewers.png" alt="Экшен Get In Out Viewers" >}}
 
-- Триггер: **Custom** -> **Vk Video Live** -> **Present Viewers (VkLive)**.
-- Пишет, когда зритель впервые зашёл на трансляцию.
-- Пишет, когда зритель просто появился в списке зрителей (пришёл на трансляцию).
-- Пишет, когда зритель пропал из списка зрителей (ушёл с трансляции).
+- Триггер экшена: **Custom** -> **Vk Video Live** -> **Present Viewers (VkLive)**.
+- События (отдельные триггеры, аргумент `%userName%`):
+  - **Viewer First Today (VkLive)** (`VKVideoLive_ViewerFirstToday`) — впервые за текущую трансляцию;
+  - **Viewer Joined (VkLive)** (`VKVideoLive_ViewerJoined`) — снова появился в списке зрителей;
+  - **Viewer Left (VkLive)** (`VKVideoLive_ViewerLeft`) — пропал из списка зрителей.
 - Примечания: требует корректной настройки экшена **\[VKVideoLive] Get Viewers** и предварительной очистки списков перед началом трансляции.
 
 ### \[VKVideoLive] Get New Viewers
 
-Экшен отправляет в MiniChat пользовательское событие о новом зрителе на текущей трансляции. По умолчанию выключен. Если используете **Get In Out Viewers**, то оставьте выключенным.
+Экшен вызывает триггер **Viewer First Today (VkLive)** для зрителей, впервые попавших в список за текущую трансляцию. По умолчанию выключен. Если используете **Get In Out Viewers**, оставьте выключенным (иначе дублирование First Today).
 
 {{< img class="center" src="/images/usage/VkLive_Get_New_Viewers.png" alt="Экшен Get New Viewers" >}}
 
-- Триггер: **Custom** -> **Vk Video Live** -> **Present Viewers (VkLive)**.
+- Триггер экшена: **Custom** -> **Vk Video Live** -> **Present Viewers (VkLive)**.
+- Событие: **Custom** -> **Vk Video Live** -> **Viewer First Today (VkLive)** (`%userName%`).
 - Примечания: требует корректной настройки экшена **\[VKVideoLive] Get Viewers** и предварительной очистки списков перед началом трансляции.
 
 ### \[VKVideoLive] Get Random Viewer
@@ -145,6 +147,22 @@ url: "usage/"
 Экшен получает одного случайного зрителя и записывает его имя в аргумент `randomUserName0`.
 
 {{< img class="center" src="/images/usage/VkLive_Random_Viewer.png" alt="Экшен Get Random Viewer" >}}
+
+### \[VKVideoLive] Get Viewer Info
+
+Экшен запрашивает у **официального** API детальные данные одного зрителя (`GET /chat/member`).
+
+- Аргументы:
+  - `channel_name` — URL канала, как для остальных экшенов;
+  - `userId` / `user_id` / `id`, либо `minichat.Data.UserID` из MiniChat.
+- Результат:
+  - `userName` / `user`, `userId`;
+  - `isModerator`, `isOwner`;
+  - `registeredAt` (если API отдал ненулевое значение);
+  - `chatMessagesCount`, `permanentBansCount`, `temporaryBansCount`, `totalWatchedTime` (секунды);
+  - `roleNames`, `badgeNames`;
+  - `channelStatus`, `channelUrl`.
+- `avatarUrl` и `nickColor` не перезаписываются — берите из MiniChat.
 
 ### \[VKVideoLive] Get Viewers
 
@@ -183,6 +201,39 @@ url: "usage/"
 
 1. **\[VKVideoLive] Get Rewards**
 2. **\[MiniChat Trigger Manager] RegisterRewardTriggers** — `rewardNames` и `minichat.Service` из предыдущего шага.
+
+### \[VKVideoLive] Get Reward Demands
+
+Экшен получает страницу запросов наград (demands) зрителей через `GET /channel_point/reward/demands`.
+
+- Аргументы:
+  - `channel_name` — URL канала;
+  - `limit` — опционально, по умолчанию `200` (максимум API);
+  - `offset` — опционально, по умолчанию `0`.
+- Результат:
+  - `demandIds`, `demandRewardIds`, `demandUserIds`, `demandUserNicks`, `demandStatuses` — параллельные списки;
+  - `demandsCount` — число записей на странице;
+  - `demandsIsLast`, `demandsOffset` — пагинация из `extra` ответа API.
+
+MiniChat **не** отдаёт числовой `demandId` VK API (`%redemptionId%` — GUID события MiniChat). Для reject/accept либо берите id из этого списка, либо используйте резолв по `userId` + `rewardId` (см. ниже).
+
+### \[VKVideoLive] Reject Reward Demand / Accept Reward Demand
+
+Экшены отклоняют или принимают конкретный запрос награды (`POST …/demand/reject` или `…/demand/accept`).
+
+Общие аргументы:
+
+- `channel_name` — URL канала;
+- **либо** `demandId` / `demand_id` — числовой id demand из API;
+- **либо** (типично после триггера MiniChat Reward):
+  - `userId` / `user_id` / `minichat.Data.UserID`;
+  - `rewardId` / `reward_id` / `minichat.Data.RewardID` (или `rewardName` с резолвом через кэш наград).
+
+При резолве без `demandId` сервис листает demands, ищет открытый матч по зрителю и награде и берёт самый свежий (`created_at`, затем больший `id`).
+
+После успеха в аргумент `demandId` записывается использованный id.
+
+Типичная цепочка: триггер MiniChat Reward → **Reject Reward Demand** (или Accept) с `%userId%` и `%rewardId%`.
 
 ### \[VKVideoLive] Off Reward
 
